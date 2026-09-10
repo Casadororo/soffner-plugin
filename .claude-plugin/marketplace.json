@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "soffner-plugin",
+  "description": "Skills pessoais de Claude Code do Rodrigo Soffner: handoff entre sessoes, self-review, dono de PR, validacao no browser, gravacao de aba e video de demo de PR",
+  "owner": {
+    "name": "Rodrigo Soffner",
+    "url": "https://github.com/Casadororo"
+  },
+  "plugins": [
+    {
+      "name": "soffner",
+      "description": "Handoff entre sessoes, self-review do proprio diff, dono de PR, validacao de PR no browser, gravacao de aba do Chrome e video de demo publicado na PR",
+      "source": "./",
+      "category": "productivity",
+      "tags": ["workflow", "code-review", "browser", "video", "pull-request"]
+    }
+  ]
+}

@@ -24,19 +24,45 @@ de teste, como subir o server).
 
 ## Instalação
 
+O repo é o próprio marketplace, então não tem clone manual nem submódulo:
+
 ```bash
-git clone https://github.com/Casadororo/soffner-plugin.git
-ln -s "$PWD/soffner-plugin" ~/.claude/skills/soffner
+claude plugin marketplace add Casadororo/soffner-plugin
+claude plugin install soffner@soffner-plugin
 ```
 
-O Claude Code carrega como `soffner@skills-dir` na sessão seguinte. Para carregar na sessão atual,
-`/reload-plugins`.
+O Claude Code clona sozinho dentro de `~/.claude/plugins/` e carrega o plugin na sessão seguinte.
 
 As skills são invocadas com o prefixo do plugin:
 
 ```
 /soffner:handoff <goal>
 ```
+
+## Atualização
+
+```bash
+claude plugin marketplace update soffner-plugin
+claude plugin update soffner
+```
+
+O Claude Code também refaz esse fetch por conta própria de tempos em tempos, então na prática um
+push na `main` chega às máquinas sem ninguém rodar nada. O comando acima serve para quando você
+quer a versão nova agora. Em qualquer dos casos a sessão precisa reiniciar para aplicar.
+
+## Desenvolvimento local
+
+Instalado pelo marketplace, mexer numa skill exige commit e push. Para o ciclo curto, carregue por
+symlink em vez de instalar:
+
+```bash
+git clone https://github.com/Casadororo/soffner-plugin.git
+ln -s "$PWD/soffner-plugin" ~/.claude/skills/soffner
+```
+
+Assim o plugin carrega como `soffner@skills-dir` e o arquivo editado vale na sessão seguinte
+(`/reload-plugins` para valer na sessão atual). **Não deixe os dois caminhos ativos na mesma
+máquina**: as mesmas skills apareceriam duas vezes, uma por origem.
 
 ## Dependências externas
 
