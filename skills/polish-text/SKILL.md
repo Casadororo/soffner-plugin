@@ -11,10 +11,28 @@ The rewritten text stays in the **source language** (pt-BR in almost every case)
 
 ## What the output IS
 
-1. The rewritten text, alone, between two `---` lines, ready to copy.
+1. The rewritten text, alone, inside a fenced code block, ready to copy.
 2. Up to three short lines starting with `Changed:` naming the substantive edits (a fix of meaning, a moved sentence, a dropped redundancy). Spelling and accent fixes are not listed.
 
 Nothing else. No preamble, no closing offer, no explanation of your method.
+
+### The fence is not optional
+
+The text goes inside a fence tagged `markdown`, never between `---` lines and never as bare prose.
+Almost every text that reaches this skill is destined for a place that reads markup: Slack, a PR
+body, a GitHub comment. Printed bare, the terminal renders it, and what the user copies is the
+rendered version: the backticks around `devq` are gone, the bullets became glyphs, `**bold**` lost
+its asterisks and the emoji codes like `:kekw:` may have been eaten. Pasting that into Slack sends
+a message missing the very formatting the author wrote.
+
+The fence is the envelope, not part of the text. The user copies what is inside it.
+
+- **Tag it `markdown`.** The content stays literal either way; the tag tells the reader what the
+  block is.
+- **Four backticks by default.** Three is enough only when the text has no fence of its own, and a
+  message about code usually does. Count the longest run of backticks inside the text and open with
+  at least one more.
+- **Nothing else goes in the block.** The `Changed:` lines stay outside it, as plain prose.
 
 ## What you keep
 
@@ -49,6 +67,7 @@ These are the tells that make a text read as generated. The author never wrote t
 
 Run these on the rewritten text and fix every hit before printing:
 
+- The text is inside a ```` ```markdown ```` fence, and the fence is longer than any run of backticks inside the text.
 - Search for `—` and `–`. Zero allowed.
 - Search for `: ` followed by a lowercase letter. Every hit must be a list introduction or a quoted value; anything else becomes parentheses or a new sentence.
 - Read the last line. If it restates or summarizes, delete it.
