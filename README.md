@@ -2,7 +2,7 @@
 
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
 repito no dia a dia: passar trabalho para outra sessão, revisar o próprio diff antes de pedir
-review, validar uma PR no browser e transformar uma PR em vídeo.
+review, atualizar a branch com a base, validar uma PR no browser e transformar uma PR em vídeo.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -17,6 +17,7 @@ de teste, como subir o server).
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |
 | `self-review` | Self-review competitivo do próprio diff: um revisor por arquivo de `.claude/rules/`, mais Banca e Juiz. Saída fixa: tabela única de achados, placar e gate para publicar como review na PR. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela, sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
+| `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Sem push. |
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
 | `browser-record` | Grava um mp4 de uma aba real do Chrome com o [aditor](https://github.com/victorlcampos/aditor), por CDP, num perfil que mantém os logins. Serve sozinha ou chamada por outra skill. |
@@ -70,7 +71,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 
 | Skill | Precisa de |
 |-------|-----------|
-| `handoff`, `handoff-accept`, `dono`, `self-review` | `git`, `gh` autenticado |
+| `handoff`, `handoff-accept`, `dono`, `self-review`, `update-branch` | `git`, `gh` autenticado |
 | `browser-test`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
 | `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
 
