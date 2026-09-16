@@ -1,9 +1,9 @@
 # soffner-plugin
 
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
-repito no dia a dia: desenhar antes de codar, passar trabalho para outra sessão, revisar o
-próprio diff antes de pedir review, triar o review que chega, atualizar a branch com a base,
-validar uma PR no browser e transformar uma PR em vídeo.
+repito no dia a dia: abrir uma task sem errar a base, desenhar antes de codar, passar trabalho
+para outra sessão, revisar o próprio diff antes de pedir review, triar o review que chega,
+atualizar a branch com a base, validar uma PR no browser e transformar uma PR em vídeo.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -14,6 +14,7 @@ de teste, como subir o server).
 
 | Skill | O que faz |
 |-------|-----------|
+| `itask` | Confere o prompt de abertura de uma task antes de existir qualquer coisa em disco. Preenche worktree, branch base, branch nova e próxima skill pelas convenções do projeto, mostra os quatro campos numa tabela com o goal e para até você confirmar. Sem skill de shape no repo, a próxima etapa é implementar direto. |
 | `brainstorming` | Transforma uma ideia em design. Lê o repo para responder o que o repo responde, carrega o resto como suposição explícita e gasta sua atenção em lote, num gate só, em vez de uma pergunta por mensagem. Suposição rejeitada rebobina o trabalho até o último ponto aceito. |
 | `handoff` | Lado criador. Sobe um agente novo em background (`claude --bg`) com um brief escrito, espera o ACK de entendimento e libera com GO. |
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |
@@ -93,7 +94,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 
 | Skill | Precisa de |
 |-------|-----------|
-| `handoff`, `handoff-accept`, `dono`, `self-review`, `receiving-code-review`, `update-branch` | `git`, `gh` autenticado |
+| `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `receiving-code-review`, `update-branch` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
 | `browser-test`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
 | `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
