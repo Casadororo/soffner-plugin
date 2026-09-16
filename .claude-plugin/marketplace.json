@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "soffner-plugin",
-  "description": "Skills pessoais de Claude Code do Rodrigo Soffner: handoff entre sessoes, self-review, dono de PR, atualizacao de branch com a base, validacao no browser, gravacao de aba e video de demo de PR",
+  "description": "Skills pessoais de Claude Code do Rodrigo Soffner: brainstorming, triagem de review recebido, handoff entre sessoes, self-review, dono de PR, atualizacao de branch com a base, validacao no browser, gravacao de aba e video de demo de PR",
   "owner": {
     "name": "Rodrigo Soffner",
     "url": "https://github.com/Casadororo"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "soffner",
-      "description": "Handoff entre sessoes, self-review do proprio diff, dono de PR, atualizacao de branch com a base, validacao de PR no browser, gravacao de aba do Chrome e video de demo publicado na PR",
+      "description": "Brainstorming com gate em lote, triagem de review recebido pelo ganho real, handoff entre sessoes, self-review do proprio diff, dono de PR, atualizacao de branch com a base, validacao de PR no browser, gravacao de aba do Chrome e video de demo publicado na PR",
       "source": "./",
       "category": "productivity",
       "tags": ["workflow", "code-review", "git", "browser", "video", "pull-request"]
