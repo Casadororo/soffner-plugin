@@ -94,7 +94,7 @@ After the ACK, stop. No edits, no commits, no migrations, no heavy tests, no PR.
 ## Step 6: react to the reply
 
 - **`HANDOFF-REVISE`**: apply the corrections to your understanding, re-validate against the code whatever changed, and send `HANDOFF-ACK` again (same format). Stay stopped.
-- **`HANDOFF-GO`**: start. Invoke the brief's next skill with the goal as context and work autonomously inside the worktree.
+- **`HANDOFF-GO`**: start. Invoke the brief's next skill with the goal as context and work autonomously inside the worktree. A brief that says `implement directly` has no skill to invoke — start the work. Do not substitute a planning skill of your own choosing for the step the creator deliberately left out.
 
 ## After the GO: channel closed by default
 

@@ -46,6 +46,11 @@ desligado. As duas diferenças são de propósito:
 Também é de propósito que a `brainstorming` daqui **não** dispara sozinha: ela só entra com
 `/soffner:brainstorming`.
 
+Fora o crédito acima, **nenhuma skill do plugin referencia o superpowers**. Com ele desligado,
+`itask` e `handoff` resolvem a próxima etapa pela cascata de quatro passos descrita em cada uma —
+skill citada no prompt, `brainstorming`, skill de shape do projeto, implementar direto — e `dono`
+não aponta mais para uma skill de debug que não existe mais aqui.
+
 ## Instalação
 
 O repo é o próprio marketplace, então não tem clone manual nem submódulo:

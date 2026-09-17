@@ -39,13 +39,21 @@ This is a default, not a prohibition. If the user asks ("tell the child to stop"
 | Branch | `<type>/<area>/<description>`, derived from the goal (see "Branch name") |
 | Worktree | same string as the branch (the path gets sanitized by `/worktree-setup`) |
 | Base branch | the project's integration branch, read from its `CLAUDE.md`. Never assumed to be `main` |
-| Next skill | `superpowers:writing-plans` (fallback `/shape`) |
+| Next skill | resolved the same way as `/itask` (see below) |
 | Model | `opus` |
 | Effort | `high` |
 | Permission mode | pass no flag at all (the child inherits the user's config, which is auto mode) |
 | Goal | required, no default |
 
-Next-skill overrides, same as `/itask`: prompt says "brainstorm" means `superpowers:brainstorming`; prompt names an explicit skill means that skill.
+The next skill is resolved exactly as `/itask` resolves it, first match wins:
+
+1. The prompt names a skill — that one.
+2. The prompt asks for design ("brainstorm", "think it through first") — `/soffner:brainstorming`.
+3. The project ships a shaping skill (`shape` or equivalent) — that one. The normal path.
+4. It does not — the agent implements directly. No plan document, no substitute step.
+
+Whatever comes out of this goes into the brief verbatim, because the created agent cannot resolve it
+for itself — it boots in another worktree and inherits none of this session's reasoning.
 
 Do not pass `--permission-mode`. The user works in auto mode and their config is calibrated for it.
 
@@ -131,7 +139,7 @@ Content (fill in every field, no dangling placeholders):
 ## Environment
 - Branch to work on: `<type>/<area>/<description>`
 - Base branch: `<base>`
-- Next skill (after the GO): `<skill>`
+- Next skill (after the GO): `<skill>`, or `implement directly` when no shaping skill resolved
 
 ## Context
 <why this demand exists, what the user already decided, relevant links/PRs/files>
@@ -220,4 +228,4 @@ Then stop. Do not monitor.
 ## When NOT to use
 
 - Work this session does faster itself (reading, short debugging, local config tweak): use `/itask` or just do it.
-- A demand with no defined context: run `/shape` or brainstorm first; a vague brief produces a vague ACK.
+- A demand with no defined context: shape it or brainstorm it first; a vague brief produces a vague ACK.

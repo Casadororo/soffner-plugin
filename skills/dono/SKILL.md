@@ -162,7 +162,7 @@ Single exception: the task admits different readings that materially change the 
 While executing:
 
 - Validate the description's premises against the code before implementing. Divergence between description and code: stop and report with evidence (`CLAUDE.md`).
-- Project skills apply as usual. Bug with unknown cause: `superpowers:systematic-debugging`. Large demand with no shape: `/shape` first.
+- Project skills apply as usual. Bug with unknown cause: find the cause before proposing a fix — reproduce it, then narrow it down — instead of patching the symptom. Large demand with no shape: the project's shaping skill first, when it ships one.
 - Tests only through the queue or runner the project documents, one run at a time. **Infrastructure** failure (database, migration, fixture, connection): stop and hand it back to the user with the exact message, without trying to fix the environment.
 - No browser automation and no dev server unless the user asks.
 - At the end: summarize what changed (files plus behavior), what was verified, and what was left out. No commit and no push until the user asks.
