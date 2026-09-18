@@ -274,11 +274,27 @@ Zero findings across every lens: print the header, the closing line, and skip th
 
 The report lives in the message. It is **never written to a file**, and nothing in the repository is touched. The only thing this skill can write anywhere is a comment on the PR, and only after an explicit yes.
 
-One question, last thing in the message, default no:
+The gate is **one `AskUserQuestion` call**, never a question asked in prose. Up to two questions, asked together so the operator answers the whole thing in one pass.
 
-> Post the [N] `fix` findings as a comment on PR #[number]? (yes / no)
+**Question 1 — the `call` rows.** Only when there is at least one. This is what `call` means: the weighing got as far as *real, but the author decides*, and this is the author deciding.
 
-**On yes** — a single top-level comment, never inline comments. Inline placement is where a review call fails on a bad line number, and this skill is not the one to spend a retry loop on that; `/soffner:self-review` posts inline.
+- `header: "Call rows"`, `multiSelect: true`
+- `question`: ``Which `call` findings do you want promoted to `fix`?``
+- One option per `call` row, up to 4. Label is `<ID> — <what to do>`, a handful of words. Description is the trade in one line — `Buys: <gain>. Costs: <cost>.` — reusing the two the weighing already produced, so the choice is made on the evidence rather than on the title.
+- More than 4 `call` rows: the 4 with the largest consequence go in the picker, the rest stay in the table as `call` and are never published.
+- **Nothing selected is a real answer.** It means nothing was promoted. Do not ask again and do not fall back to prose.
+
+**Question 2 — publishing.** Only when the target is a real PR.
+
+- `header: "Publish"`, `multiSelect: false`
+- `question`: `Post the confirmed findings as a comment on PR #<n>?`
+- Two options, **`Don't post` first**, because that is the default — nothing gets written unless it is chosen deliberately. The other is `Post the comment`, described as one top-level pt-BR comment with the `fix` rows plus whatever question 1 promoted.
+
+Both questions are written in **English**: they are terminal output aimed at the operator, so they follow the skill. Only the comment that lands on GitHub is pt-BR.
+
+Skip the gate entirely when there is nothing to decide — no `fix` rows, no `call` rows, or a raw diff with no PR to publish to.
+
+**On `Post the comment`** — a single top-level comment, never inline comments. Inline placement is where a review call fails on a bad line number, and this skill is not the one to spend a retry loop on that; `/soffner:self-review` posts inline.
 
 Pipe the body straight in, no file on disk:
 
@@ -289,11 +305,11 @@ gh pr comment <number> --body-file - <<'EOF'
 EOF
 ```
 
-The comment body is written in **pt-BR**, on purpose — it is published on a PR whose audience is pt-BR, while this skill's own text stays English. Shape: a one-line header naming the origin, then one bullet per `fix` finding with location, what is wrong and what to do. `call` and `cut` rows are never published.
+The comment body is written in **pt-BR**, on purpose — it is published on a PR whose audience is pt-BR, while this skill's own text stays English. Shape: a one-line header naming the origin, then one bullet per finding with location, what is wrong and what to do. Only `fix` rows and promoted `call` rows go in; the remaining `call` rows and every `cut` stay in this session.
 
 Report the comment URL in one line and stop.
 
-**On no, or anything else** — stop. Nothing is written anywhere.
+**On `Don't post`, or no answer at all** — stop. Nothing is written anywhere.
 
 **The skill ends here, either way.** It does not fix a finding, not even the obvious one-liner, and it does not hand the findings to a skill that would. The fixing belongs to the session that wrote the code, in that session's own worktree, on its own triage. If the findings need to get there, the PR comment is how they travel — or the operator carries them over by hand.
 
@@ -309,6 +325,8 @@ Report the comment URL in one line and stop.
 | Every lens reporting 5 findings | Budgets are ceilings, not quotas. Zero is a valid lens result |
 | Fixing a finding because it is only one line | This skill reports. The session that wrote the code edits |
 | Writing the report to a file | The report is the message. The only write is the PR comment, after a yes |
+| Asking the gate in prose | One `AskUserQuestion` call, so the answer is a click and never a parse |
+| Re-asking when no `call` row was picked | Picking none is the answer. Nothing is promoted |
 | `holds` read as approval | The closing line stays, verbatim, every run |
 
 ## When NOT to use
