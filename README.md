@@ -1,9 +1,10 @@
 # soffner-plugin
 
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
-repito no dia a dia: abrir uma task sem errar a base, desenhar antes de codar, passar trabalho
-para outra sessão, revisar o próprio diff antes de pedir review, triar o review que chega,
-atualizar a branch com a base, validar uma PR no browser e transformar uma PR em vídeo.
+repito no dia a dia: abrir uma task sem errar a base, desenhar antes de codar, passar trabalho para
+outra sessão, revisar o próprio diff antes de pedir review (a fundo ou numa passada rápida), triar o
+review que chega, atualizar a branch com a base, validar uma PR no browser e transformar uma PR em
+vídeo.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -19,6 +20,7 @@ de teste, como subir o server).
 | `handoff` | Lado criador. Sobe um agente novo em background (`claude --bg`) com um brief escrito, espera o ACK de entendimento e libera com GO. |
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |
 | `self-review` | Self-review competitivo do próprio diff: um revisor por arquivo de `.claude/rules/`, mais Banca e Juiz. Saída fixa: tabela única de achados, placar e gate para publicar como review na PR. |
+| `quick-review` | Passada rápida numa PR: uma onda só de lentes Sonnet em paralelo — bloat, teste que não se paga, buraco de produto, bug provável — e cada achado pesado por quanto o ajuste compra de verdade. Saída em `fix` / `call` / `cut`, mais uma linha dizendo se o código parece correto. Revisa e para: não edita nada, o conserto fica com a sessão que escreveu o código. Não lê `.claude/rules/`; profundidade é a `self-review`. |
 | `receiving-code-review` | Tria o review que chega (humano, thread inline ou o próprio `self-review`) pelo ganho real do ajuste: implementa o que compra alguma coisa, recusa com razão técnica o que não compra e manda para follow-up o que é válido mas fora do escopo da PR. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela, sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
 | `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Sem push. |
@@ -99,7 +101,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 
 | Skill | Precisa de |
 |-------|-----------|
-| `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `receiving-code-review`, `update-branch` | `git`, `gh` autenticado |
+| `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
 | `browser-test`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
 | `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
