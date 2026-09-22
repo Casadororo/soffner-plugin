@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "decide",
+  "version": "0.1.0",
+  "description": "Decisao tipada por modelo local: o passo que e so escolha de rotulo vira chamada de CLI com contrato de exit code, e o chamador degrada sozinho quando a ferramenta nao esta instalada",
+  "author": {
+    "name": "Rodrigo Soffner"
+  },
+  "skills": [
+    "./skills"
+  ],
+  "homepage": "https://github.com/Casadororo/soffner-plugin"
+}

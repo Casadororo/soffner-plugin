@@ -1,0 +1,569 @@
+#!/usr/bin/env node
+'use strict'
+
+const fs = require('fs')
+const net = require('net')
+const os = require('os')
+const path = require('path')
+const { spawn, spawnSync } = require('child_process')
+
+const VERSION = '0.1.0'
+const ROOT = path.resolve(__dirname, '..')
+const SIDECAR = path.join(ROOT, 'sidecar', 'decide_sidecar.py')
+const SKILL = path.join(ROOT, 'skills', 'decide', 'SKILL.md')
+const HOME = path.join(os.homedir(), '.decide')
+const VENV = path.join(HOME, 'venv')
+const LOG = path.join(HOME, 'sidecar.log')
+
+const EXIT_OK = 0
+const EXIT_USAGE = 2
+const EXIT_UNAVAILABLE = 3
+const EXIT_ABSTAIN = 4
+
+const HEAD_MAX_LEN = { english: 192, multilingual: 256, 'typed-decisions': 256 }
+const STATE_MAX_LEN = { english: 512, multilingual: 1024, 'typed-decisions': 1024 }
+const MODELS = Object.keys(HEAD_MAX_LEN)
+
+const DEFAULTS = {
+  model: 'multilingual',
+  device: 'cpu',
+  floor: 0.55,
+  maxOptions: 12,
+  labelChars: 48,
+  stateChars: 2400,
+  timeoutMs: 20000,
+  startTimeoutMs: 900000,
+}
+
+function die(message, code) {
+  process.stderr.write(`decide: ${message}\n`)
+  process.exit(code)
+}
+
+function socketPath() {
+  if (process.env.DECIDE_SOCKET) return process.env.DECIDE_SOCKET
+  const base = process.env.XDG_RUNTIME_DIR || os.tmpdir()
+  return path.join(base, `decide-${process.getuid()}.sock`)
+}
+
+function pythonBin() {
+  if (process.env.DECIDE_PYTHON) return process.env.DECIDE_PYTHON
+  const venvPython = path.join(VENV, 'bin', 'python')
+  if (fs.existsSync(venvPython)) return venvPython
+  return 'python3'
+}
+
+function parseArgs(argv) {
+  const out = { _: [] }
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i]
+    if (token === '-') {
+      out._.push('-')
+    } else if (token.startsWith('--')) {
+      const eq = token.indexOf('=')
+      if (eq !== -1) {
+        out[token.slice(2, eq)] = token.slice(eq + 1)
+      } else if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
+        out[token.slice(2)] = argv[i + 1]
+        i += 1
+      } else {
+        out[token.slice(2)] = true
+      }
+    } else {
+      out._.push(token)
+    }
+  }
+  return out
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+function readStdin() {
+  const chunks = []
+  const buffer = Buffer.alloc(65536)
+  const deadline = Date.now() + 15000
+  for (;;) {
+    let bytes
+    try {
+      bytes = fs.readSync(0, buffer, 0, buffer.length, null)
+    } catch (error) {
+      if (error.code === 'EAGAIN') {
+        if (Date.now() > deadline) die('timed out waiting for JSON on stdin', EXIT_USAGE)
+        sleepSync(5)
+        continue
+      }
+      if (error.code === 'EOF') break
+      die(`cannot read stdin: ${error.message}`, EXIT_USAGE)
+    }
+    if (bytes === 0) break
+    chunks.push(Buffer.from(buffer.subarray(0, bytes)))
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+function loadRequest(args) {
+  const source = args.request || args.file
+  let raw
+  if (source && source !== '-') {
+    if (!fs.existsSync(source)) die(`request file not found: ${source}`, EXIT_USAGE)
+    raw = fs.readFileSync(source, 'utf8')
+  } else {
+    if (process.stdin.isTTY) die('no request given: pass --request <file> or pipe JSON on stdin', EXIT_USAGE)
+    raw = readStdin()
+  }
+  try {
+    return JSON.parse(raw)
+  } catch (error) {
+    die(`request is not valid JSON: ${error.message}`, EXIT_USAGE)
+  }
+}
+
+function shorten(text, limit) {
+  const value = String(text == null ? '' : text).replace(/\s+/g, ' ').trim()
+  if (value.length <= limit) return value
+  return `${value.slice(0, Math.max(0, limit - 1))}…`
+}
+
+function renderState(state, stateChars) {
+  if (typeof state === 'string') return shorten(state, stateChars).slice(0, stateChars)
+  if (state === null || typeof state !== 'object') {
+    die('state must be a string or an object', EXIT_USAGE)
+  }
+  const entries = Array.isArray(state) ? state : Object.entries(state)
+  const lines = []
+  let used = 0
+  for (const entry of entries) {
+    const [key, value] = Array.isArray(entry) ? entry : [entry[0], entry[1]]
+    const body = typeof value === 'string' ? value : JSON.stringify(value)
+    const line = `${String(key).toUpperCase()}: ${String(body).replace(/\s+/g, ' ').trim()}`
+    const remaining = stateChars - used
+    if (remaining <= 0) break
+    const clipped = line.length > remaining ? `${line.slice(0, remaining - 1)}…` : line
+    lines.push(clipped)
+    used += clipped.length + 1
+  }
+  return lines.join('\n')
+}
+
+function normalizeQuestions(questions, opts) {
+  if (!questions || typeof questions !== 'object' || Array.isArray(questions)) {
+    die('questions must be an object keyed by question id', EXIT_USAGE)
+  }
+  const ids = Object.keys(questions)
+  if (ids.length === 0) die('questions must not be empty', EXIT_USAGE)
+  const normalized = {}
+  const notes = []
+  for (const id of ids) {
+    const question = questions[id]
+    if (!question || typeof question !== 'object') die(`question ${id} must be an object`, EXIT_USAGE)
+    const type = question.type
+    if (type !== 'choice' && type !== 'score' && type !== 'noul') {
+      die(`question ${id} has unknown type ${JSON.stringify(type)}; use choice, score or noul`, EXIT_USAGE)
+    }
+    const copy = { type, instructions: shorten(question.instructions || '', 240) }
+    if (type === 'noul') {
+      if (question.criteria) notes.push(`${id}: criteria ignored, noul takes none`)
+      normalized[id] = copy
+      continue
+    }
+    if (!question.criteria) die(`question ${id} of type ${type} needs criteria`, EXIT_USAGE)
+    if (type === 'score') {
+      const levels = Array.isArray(question.criteria) ? question.criteria : Object.keys(question.criteria)
+      if (levels.length < 2) die(`question ${id} needs at least two levels`, EXIT_USAGE)
+      if (levels.length > opts.maxOptions) {
+        die(`question ${id} has ${levels.length} levels, above --max-options ${opts.maxOptions}`, EXIT_USAGE)
+      }
+      copy.criteria = levels.map((level) => shorten(level, opts.labelChars))
+      normalized[id] = copy
+      continue
+    }
+    const isArray = Array.isArray(question.criteria)
+    const keys = isArray ? question.criteria : Object.keys(question.criteria)
+    if (keys.length < 2) die(`question ${id} needs at least two options`, EXIT_USAGE)
+    if (keys.length > opts.maxOptions) {
+      die(
+        `question ${id} has ${keys.length} options, above --max-options ${opts.maxOptions}. ` +
+          'Split the question or shortlist first: past this ceiling the head budget leaves a couple of tokens per label and the model picks between unreadable ids with high confidence.',
+        EXIT_USAGE
+      )
+    }
+    const criteria = {}
+    for (const key of keys) {
+      const label = shorten(key, opts.labelChars)
+      criteria[label] = isArray ? null : shorten(question.criteria[key], 120)
+    }
+    copy.criteria = criteria
+    normalized[id] = copy
+  }
+  return { questions: normalized, notes }
+}
+
+function headBudget(questions, model) {
+  const limit = HEAD_MAX_LEN[model]
+  const overflown = []
+  for (const id of Object.keys(questions)) {
+    const question = questions[id]
+    let text = question.instructions || ''
+    if (question.type === 'choice') {
+      for (const key of Object.keys(question.criteria)) {
+        text += ` ${key} ${question.criteria[key] || ''}`
+      }
+    } else if (question.type === 'score') {
+      text += ` ${question.criteria.join(' ')}`
+    }
+    const estimate = Math.ceil(text.length / 3.5)
+    if (estimate > limit) overflown.push({ id, estimate, limit })
+  }
+  return overflown
+}
+
+function connect(sock, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const client = net.createConnection(sock)
+    const timer = setTimeout(() => {
+      client.destroy()
+      reject(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }))
+    }, timeoutMs)
+    client.once('connect', () => {
+      clearTimeout(timer)
+      resolve(client)
+    })
+    client.once('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+  })
+}
+
+function roundTrip(client, payload, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let buffer = ''
+    const timer = setTimeout(() => {
+      client.destroy()
+      reject(new Error('the sidecar did not answer in time'))
+    }, timeoutMs)
+    client.on('data', (chunk) => {
+      buffer += chunk.toString('utf8')
+      const cut = buffer.indexOf('\n')
+      if (cut === -1) return
+      clearTimeout(timer)
+      const line = buffer.slice(0, cut)
+      client.end()
+      try {
+        resolve(JSON.parse(line))
+      } catch (error) {
+        reject(new Error(`the sidecar answered with invalid JSON: ${error.message}`))
+      }
+    })
+    client.once('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+    client.write(`${JSON.stringify(payload)}\n`)
+  })
+}
+
+async function talk(payload, timeoutMs) {
+  const sock = socketPath()
+  let client
+  try {
+    client = await connect(sock, 2000)
+  } catch (error) {
+    return { unavailable: true, reason: error.code === 'ENOENT' ? 'no sidecar listening' : error.message, sock }
+  }
+  return roundTrip(client, payload, timeoutMs)
+}
+
+function mockAnswers(state, questions) {
+  const haystack = String(state).toLowerCase()
+  const answers = {}
+  for (const id of Object.keys(questions)) {
+    const question = questions[id]
+    if (question.type === 'noul') {
+      answers[id] = { type: 'noul', noul: 0.5, confidence: 0.0 }
+      continue
+    }
+    if (question.type === 'score') {
+      const levels = question.criteria
+      answers[id] = {
+        type: 'score',
+        score: (levels.length - 1) / 2,
+        legend: Object.fromEntries(levels.map((level, index) => [String(index), level])),
+        confidence: 0.0,
+      }
+      continue
+    }
+    const keys = Object.keys(question.criteria)
+    let best = keys[0]
+    let bestHits = -1
+    for (const key of keys) {
+      const source = `${key} ${question.criteria[key] || ''}`.toLowerCase()
+      const words = source.split(/[^a-z0-9À-ɏ]+/).filter((word) => word.length > 2)
+      const hits = words.filter((word) => haystack.includes(word)).length
+      if (hits > bestHits) {
+        bestHits = hits
+        best = key
+      }
+    }
+    const probabilities = {}
+    for (const key of keys) probabilities[key] = key === best ? 1 / keys.length : 1 / keys.length
+    answers[id] = { type: 'choice', choice: best, probabilities, confidence: 0.0 }
+  }
+  return answers
+}
+
+function confidenceOf(answer) {
+  if (!answer || typeof answer !== 'object') return 0
+  if (typeof answer.confidence === 'number') return answer.confidence
+  return 0
+}
+
+async function cmdAsk(args) {
+  const opts = {
+    model: args.model || process.env.DECIDE_MODEL || DEFAULTS.model,
+    floor: args.floor === undefined ? DEFAULTS.floor : Number(args.floor),
+    maxOptions: args['max-options'] === undefined ? DEFAULTS.maxOptions : Number(args['max-options']),
+    labelChars: args['label-chars'] === undefined ? DEFAULTS.labelChars : Number(args['label-chars']),
+    stateChars: args['state-chars'] === undefined ? DEFAULTS.stateChars : Number(args['state-chars']),
+    timeoutMs: args.timeout === undefined ? DEFAULTS.timeoutMs : Number(args.timeout),
+  }
+  if (!MODELS.includes(opts.model)) {
+    die(`unknown model ${opts.model}; use one of ${MODELS.join(', ')}`, EXIT_USAGE)
+  }
+  if (!Number.isFinite(opts.floor) || opts.floor < 0 || opts.floor > 1) {
+    die('--floor must be a number between 0 and 1', EXIT_USAGE)
+  }
+
+  const request = loadRequest(args)
+  const state = renderState(request.state, opts.stateChars)
+  if (!state) die('state is empty after rendering', EXIT_USAGE)
+  const { questions, notes } = normalizeQuestions(request.questions, opts)
+  for (const note of notes) process.stderr.write(`decide: ${note}\n`)
+
+  const overflown = headBudget(questions, opts.model)
+  if (overflown.length > 0) {
+    const detail = overflown.map((item) => `${item.id} (~${item.estimate} > ${item.limit})`).join(', ')
+    die(
+      `question prompt plus options is over head_max_len for ${opts.model}: ${detail}. ` +
+        'Shorten instructions or options, or split the question.',
+      EXIT_USAGE
+    )
+  }
+
+  let reply
+  if (args.provider === 'mock') {
+    reply = {
+      answers: mockAnswers(state, questions),
+      provider: 'mock',
+      model: opts.model,
+      elapsed_ms: 0,
+    }
+  } else {
+    reply = await talk({ state, questions, model: opts.model }, opts.timeoutMs)
+    if (reply.unavailable) {
+      process.stderr.write(`decide: unavailable (${reply.reason}); run 'decide up' or fall back\n`)
+      process.exit(EXIT_UNAVAILABLE)
+    }
+    if (reply.error) die(`sidecar refused: ${reply.error}`, EXIT_USAGE)
+  }
+
+  const lowest = Object.keys(reply.answers).reduce((acc, id) => {
+    const value = confidenceOf(reply.answers[id])
+    return value < acc ? value : acc
+  }, 1)
+  const abstained = lowest < opts.floor
+  const output = {
+    answers: reply.answers,
+    provider: reply.provider,
+    model: reply.model,
+    floor: opts.floor,
+    min_confidence: Number(lowest.toFixed(4)),
+    abstain: abstained,
+    elapsed_ms: reply.elapsed_ms,
+  }
+  if (reply.usage) output.usage = reply.usage
+  process.stdout.write(`${JSON.stringify(output, null, args.pretty ? 2 : 0)}\n`)
+  process.exit(abstained ? EXIT_ABSTAIN : EXIT_OK)
+}
+
+async function cmdStatus(args) {
+  const reply = await talk({ op: 'ping' }, 3000)
+  if (reply.unavailable) {
+    process.stderr.write(`decide: cold (${reply.reason} at ${reply.sock})\n`)
+    process.exit(EXIT_UNAVAILABLE)
+  }
+  process.stdout.write(`${JSON.stringify({ warm: true, ...reply, socket: socketPath() })}\n`)
+  process.exit(EXIT_OK)
+}
+
+async function cmdDown() {
+  const reply = await talk({ op: 'stop' }, 5000)
+  if (reply.unavailable) {
+    process.stderr.write('decide: nothing listening\n')
+    process.exit(EXIT_UNAVAILABLE)
+  }
+  process.stdout.write('decide: stopped\n')
+  process.exit(EXIT_OK)
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function cmdUp(args) {
+  const model = args.model || process.env.DECIDE_MODEL || DEFAULTS.model
+  if (!MODELS.includes(model)) die(`unknown model ${model}; use one of ${MODELS.join(', ')}`, EXIT_USAGE)
+  const device = args.device || DEFAULTS.device
+  const already = await talk({ op: 'ping' }, 1500)
+  if (!already.unavailable && already.ok) {
+    if (already.model !== model) {
+      die(`a sidecar is already warm with model ${already.model}; run 'decide down' first`, EXIT_USAGE)
+    }
+    process.stdout.write(`${JSON.stringify({ warm: true, ...already, socket: socketPath() })}\n`)
+    process.exit(EXIT_OK)
+  }
+
+  fs.mkdirSync(HOME, { recursive: true })
+  const logFd = fs.openSync(LOG, 'a')
+  const python = pythonBin()
+  const child = spawn(python, [SIDECAR, '--socket', socketPath(), '--model', model, '--device', device], {
+    detached: true,
+    stdio: ['ignore', logFd, logFd],
+  })
+  child.unref()
+
+  const deadline = Date.now() + (args.timeout ? Number(args.timeout) : DEFAULTS.startTimeoutMs)
+  process.stderr.write(`decide: starting ${model} on ${device}, first run downloads the checkpoint\n`)
+  while (Date.now() < deadline) {
+    await sleep(700)
+    const ping = await talk({ op: 'ping' }, 1500)
+    if (!ping.unavailable && ping.ok) {
+      process.stdout.write(`${JSON.stringify({ warm: true, ...ping, socket: socketPath(), log: LOG })}\n`)
+      process.exit(EXIT_OK)
+    }
+    try {
+      process.kill(child.pid, 0)
+    } catch (error) {
+      const tail = fs.existsSync(LOG) ? fs.readFileSync(LOG, 'utf8').split('\n').slice(-12).join('\n') : ''
+      die(`the sidecar died during start. Tail of ${LOG}:\n${tail}`, EXIT_UNAVAILABLE)
+    }
+  }
+  die(`the sidecar did not become ready in time; see ${LOG}`, EXIT_UNAVAILABLE)
+}
+
+function cmdInstall(args) {
+  fs.mkdirSync(HOME, { recursive: true })
+  const python = process.env.DECIDE_BOOTSTRAP_PYTHON || 'python3'
+  process.stderr.write(`decide: creating ${VENV}\n`)
+  const created = spawnSync(python, ['-m', 'venv', VENV], { stdio: 'inherit' })
+  if (created.status !== 0) {
+    die(
+      `could not create the venv with ${python}. On Debian and Ubuntu this usually means the venv module ` +
+        'ships separately: install python3-venv (or use uv) and run it again.',
+      EXIT_UNAVAILABLE
+    )
+  }
+  const pip = path.join(VENV, 'bin', 'pip')
+  process.stderr.write('decide: installing laya\n')
+  const spec = args.spec || 'laya'
+  const installed = spawnSync(pip, ['install', '--upgrade', spec], { stdio: 'inherit' })
+  if (installed.status !== 0) die('pip install failed', EXIT_UNAVAILABLE)
+  process.stdout.write(`decide: installed. Next: decide up --model ${args.model || DEFAULTS.model}\n`)
+  process.exit(EXIT_OK)
+}
+
+async function cmdSelftest(args) {
+  const request = {
+    state: { goal: 'classify this line', line: 'the invoice was rejected by the tax authority' },
+    questions: {
+      area: {
+        type: 'choice',
+        instructions: 'Which area owns this?',
+        criteria: { tax: 'taxes, invoices, fiscal rejection', design: 'layout, spacing, colors' },
+      },
+    },
+  }
+  const file = path.join(os.tmpdir(), `decide-selftest-${process.pid}.json`)
+  fs.writeFileSync(file, JSON.stringify(request))
+  const argv = ['ask', '--request', file, '--pretty']
+  if (args.provider) argv.push('--provider', args.provider)
+  if (args.model) argv.push('--model', args.model)
+  const run = spawnSync(process.argv[0], [__filename, ...argv], { encoding: 'utf8' })
+  fs.unlinkSync(file)
+  process.stderr.write(run.stderr || '')
+  process.stdout.write(run.stdout || '')
+  if (run.status === EXIT_UNAVAILABLE) {
+    die('selftest: no sidecar. This is the degraded path, and it is the one callers must handle.', EXIT_UNAVAILABLE)
+  }
+  if (run.status !== EXIT_OK && run.status !== EXIT_ABSTAIN) process.exit(run.status)
+  const parsed = JSON.parse(run.stdout)
+  if (!args.provider && parsed.provider !== 'laya') {
+    die(`selftest: answer came from ${parsed.provider}, not from the model`, EXIT_UNAVAILABLE)
+  }
+  process.stderr.write(`decide: selftest ok via ${parsed.provider} in ${parsed.elapsed_ms}ms\n`)
+  process.exit(EXIT_OK)
+}
+
+function cmdSkill() {
+  if (!fs.existsSync(SKILL)) die('SKILL.md not found next to the binary', EXIT_USAGE)
+  process.stdout.write(fs.readFileSync(SKILL, 'utf8'))
+  process.exit(EXIT_OK)
+}
+
+function usage() {
+  process.stdout.write(
+    [
+      `decide ${VERSION} - typed decisions from a local model, with a contract a caller can branch on`,
+      '',
+      'Commands:',
+      '  ask        decide one request (JSON on stdin or --request <file>)',
+      '  up         start the resident sidecar and wait until it answers',
+      '  down       stop the sidecar',
+      '  status     exit 0 when warm, 3 when cold',
+      '  install    create ~/.decide/venv and install laya into it',
+      '  selftest   run one fixture decision and refuse a non-model answer',
+      '  skill      print this plugin SKILL.md',
+      '',
+      'Exit codes:',
+      '  0  decided',
+      '  2  the request is wrong (bad JSON, unknown type, over the option ceiling)',
+      '  3  unavailable: nothing to talk to. The caller falls back to whatever it did before',
+      '  4  abstained: answered below --floor. The caller escalates instead of trusting it',
+      '',
+      'Flags for ask:',
+      '  --request <file>   read the request from a file instead of stdin',
+      `  --model <name>     ${MODELS.join(' | ')} (default ${DEFAULTS.model})`,
+      `  --floor <0..1>     confidence floor under which it abstains (default ${DEFAULTS.floor})`,
+      `  --max-options <n>  ceiling of options per choice question (default ${DEFAULTS.maxOptions})`,
+      `  --label-chars <n>  truncation of each option label (default ${DEFAULTS.labelChars})`,
+      `  --state-chars <n>  truncation of the rendered state (default ${DEFAULTS.stateChars})`,
+      '  --provider mock    deterministic answer for tests; never used as a silent fallback',
+      '  --pretty           indent the JSON',
+      '',
+    ].join('\n')
+  )
+  process.exit(EXIT_OK)
+}
+
+async function main() {
+  const argv = process.argv.slice(2)
+  const command = argv[0]
+  const args = parseArgs(argv.slice(1))
+  if (!command || command === 'help' || command === '--help' || command === '-h') usage()
+  if (command === '--version' || command === 'version') {
+    process.stdout.write(`${VERSION}\n`)
+    process.exit(EXIT_OK)
+  }
+  if (command === 'ask') return cmdAsk(args)
+  if (command === 'up') return cmdUp(args)
+  if (command === 'down') return cmdDown(args)
+  if (command === 'status') return cmdStatus(args)
+  if (command === 'install') return cmdInstall(args)
+  if (command === 'selftest') return cmdSelftest(args)
+  if (command === 'skill' || command === '--skill') return cmdSkill()
+  die(`unknown command ${command}. Run 'decide help'.`, EXIT_USAGE)
+}
+
+main().catch((error) => die(error.stack || error.message, EXIT_USAGE))

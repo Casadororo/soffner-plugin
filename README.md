@@ -11,6 +11,13 @@ custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assum
 projeto com `CLAUDE.md`, e leem do projeto as convenções que variam (branch de integração, comando
 de teste, como subir o server).
 
+O repositório é o marketplace de dois plugins independentes:
+
+| Plugin | O que é |
+|--------|---------|
+| `soffner` | As skills abaixo. É o plugin que vive na raiz do repo. |
+| `decide` | Um CLI que manda para um modelo de decisão local o passo que é só escolha de rótulo, com contrato de exit code para o chamador degradar sozinho. Documentação própria em [plugins/decide](plugins/decide/README.md). |
+
 ## Skills
 
 | Skill | O que faz |
@@ -60,9 +67,12 @@ O repo é o próprio marketplace, então não tem clone manual nem submódulo:
 ```bash
 claude plugin marketplace add Casadororo/soffner-plugin
 claude plugin install soffner@soffner-plugin
+claude plugin install decide@soffner-plugin    # opcional, independente do soffner
 ```
 
 O Claude Code clona sozinho dentro de `~/.claude/plugins/` e carrega o plugin na sessão seguinte.
+O `decide` ainda pede dois passos próprios (um symlink para o `PATH` e o modelo, que é uma
+biblioteca Python à parte), descritos em [plugins/decide](plugins/decide/README.md).
 
 As skills são invocadas com o prefixo do plugin:
 
