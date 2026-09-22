@@ -19,8 +19,11 @@ Everything below matters less than this table. A caller branches on the exit cod
 |---|---|---|
 | `0` | Decided at or above the floor | Use the answer |
 | `2` | The request is wrong: bad JSON, unknown question type, too many options, prompt over the head budget | Fix the request. Not a fallback path, a bug in the caller |
-| `3` | Unavailable: nothing is listening | **Fall back to whatever you did before this tool existed.** Do not fail, do not ask the user to install anything |
+| `3` | The binary is here, but nothing is listening | **Fall back to whatever you did before this tool existed.** Do not fail, do not ask the user to install anything |
 | `4` | Answered, but below `--floor` | Escalate: decide it the way you would have without the tool |
+| `127` | The binary is not on `PATH` | Same as `3`. **This is the common case**, because it is the state of anyone who never installed this |
+
+`127` does not come from this tool: it is the shell saying "command not found". It is in the table because it is exactly what a machine without the plugin returns, and a caller that only handled `3` would have no branch for it. Handle `127` and `3` as one path.
 
 `3` and `4` are deliberately different. `3` is "the tool is not here". `4` is "the tool is here and says it does not know". A caller that collapses them loses the second signal, which is the more useful one.
 

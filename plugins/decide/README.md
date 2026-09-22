@@ -15,8 +15,13 @@ O chamador ramifica pelo **exit code** e nunca precisa perguntar se a ferramenta
 |------|-----------|----------------|
 | `0` | Decidiu, no piso ou acima | Usa a resposta |
 | `2` | Pedido errado: JSON inválido, tipo desconhecido, opções demais, prompt acima do orçamento | Conserta o pedido. Não é caminho de fallback, é bug de quem chamou |
-| `3` | Indisponível: não há nada escutando | **Segue o caminho que já existia antes da ferramenta.** Não falha, não pede instalação |
+| `3` | O binário existe, mas não há nada escutando | **Segue o caminho que já existia antes da ferramenta.** Não falha, não pede instalação |
 | `4` | Respondeu abaixo do `--floor` | Escala: decide como decidiria sem a ferramenta |
+| `127` | O binário não está no `PATH` | Igual ao `3`. **É o caso mais comum**, porque é o de quem nunca instalou nada |
+
+O `127` não vem daqui: é o shell dizendo "command not found". Ele está na tabela porque é exatamente
+o que uma máquina sem o plugin devolve, e quem só tratasse `3` ficaria sem ramo para esse caso.
+Trate `127` e `3` como o mesmo caminho.
 
 `3` e `4` são diferentes de propósito. `3` é "a ferramenta não está aqui". `4` é "a ferramenta está
 aqui e diz que não sabe". Quem junta os dois perde o segundo sinal, que é o mais útil.
