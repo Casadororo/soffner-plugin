@@ -13,13 +13,6 @@
       "source": "./",
       "category": "productivity",
       "tags": ["workflow", "code-review", "git", "browser", "video", "pull-request"]
-    },
-    {
-      "name": "decide",
-      "description": "Decisao tipada por modelo local: o passo que e so escolha de rotulo vira chamada de CLI com contrato de exit code, e o chamador degrada sozinho quando a ferramenta nao esta instalada",
-      "source": "./plugins/decide",
-      "category": "productivity",
-      "tags": ["workflow", "decision", "triage", "cli"]
     }
   ]
 }
