@@ -24,6 +24,7 @@ de teste, como subir o server).
 | `receiving-code-review` | Tria o review que chega (humano, thread inline ou o próprio `self-review`) pelo ganho real do ajuste: implementa o que compra alguma coisa, recusa com razão técnica o que não compra e manda para follow-up o que é válido mas fora do escopo da PR. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela, sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
 | `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Sem push. |
+| `announcement` | Anúncio de feature, melhoria ou Beta para o Slack: canvas longo com a mensagem de canal que aponta para ele, ou mensagem curta autocontida. Aceita uma PR como fonte e lê dela nome, motivação, setting e limitações; o que a PR não responde (disponibilidade, time, canal, demo) vai num gate só. Salva em `announcements/<slug>/` e imprime os blocos prontos para colar. Não posta nada. |
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
 | `browser-test-auto` | A `browser-test` sem ninguém no teclado: pega um lock da máquina (settings e Chrome são compartilhados), despacha um runner Opus novo em background que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Só desktop. |
@@ -104,6 +105,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 |-------|-----------|
 | `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch`, `browser-test-auto` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
+| `announcement` | `gh` autenticado, só quando a fonte é uma PR |
 | `browser-test`, `browser-test-auto`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
 | `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
 
