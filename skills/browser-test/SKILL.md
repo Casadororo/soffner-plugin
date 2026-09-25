@@ -196,7 +196,6 @@ mkdir -p "$EVIDENCE"
 
 - Screenshot with `computer` `screenshot` and `save_to_disk: true`; copy the returned path to `$EVIDENCE/<nn>-<row-slug>.png`. One per row at least, one more per finding showing the broken state.
 - A row with three or more steps may get a GIF: `gif_creator` `start_recording` before the first step, `stop_recording` after the last, `export` with `download: true` and a `filename` of `<nn>-<row-slug>.gif`; move it from the downloads folder into `$EVIDENCE`.
-- An mp4 of a row, when the user asked for video or the row is a flow a GIF cannot carry, comes from `/soffner:browser-record`: one take per row, into `$EVIDENCE/<nn>-<row-slug>.mp4`. It only works on a tab of the recording Chrome (port 9222), so the run has to be driving that instance.
 - Write `$EVIDENCE/REPORT.md` with the same content as the chat report below, plus the full test map.
 
 No credential, token or password ever goes into a file under `$EVIDENCE`.
@@ -290,4 +289,4 @@ If the question goes unanswered, everything stays up and the `Teardown` line rec
 - The PR is not open yet, or the change is only in the working tree: nothing to validate against a delivery. Open the PR first.
 - API or token flows with no screen: this skill drives a browser, so request-level testing belongs to whatever the project uses for it.
 - Review of the diff itself: `/soffner:self-review`.
-- Recording a demo of a PR for the team: `/soffner:demo`, which plans the route, films it and publishes it in the PR body. A bare video with nowhere to publish it: `/soffner:browser-record`.
+- Recording a demo of a PR for the team: `/soffner:demo`, which plans the route, films it and publishes it in the PR body.

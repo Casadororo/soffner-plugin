@@ -31,7 +31,6 @@ de teste, como subir o server).
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
 | `browser-test-auto` | A `browser-test` sem ninguém no teclado: pega um lock da máquina (settings e Chrome são compartilhados), despacha um runner Opus novo em background que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Só desktop. |
-| `browser-record` | Grava um mp4 de uma aba real do Chrome com o [aditor](https://github.com/victorlcampos/aditor), por CDP, num perfil que mantém os logins. Serve sozinha ou chamada por outra skill. |
 | `demo` | Vídeo de demonstração de uma PR: planeja a rota, filma, monta com legenda e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. |
 
 `brainstorming` e `receiving-code-review` nasceram no [superpowers](https://github.com/obra/superpowers)
@@ -112,12 +111,12 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 | `full-review` | `git`, `gh` autenticado, o plugin ponytail e, no projeto, as skills `/super-review-gate` e `/bug-hunter-gate` |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
 | `browser-test`, `browser-test-auto`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
-| `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
+| `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
 
 O Chrome com porta de debug é um requisito do próprio Chrome, não do plugin: da versão 136 em
 diante ele recusa `--remote-debugging-port` quando o diretório de dados é o padrão, e um segundo
 `google-chrome` no mesmo diretório apenas conversa com a instância que já está rodando. A skill
-`browser-record` explica o arranjo que resolve isso, com uma cópia do perfil que preserva os
+`demo` explica o arranjo que resolve isso, com uma cópia do perfil que preserva os
 logins.
 
 ## Convenções

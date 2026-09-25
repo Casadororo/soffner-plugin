@@ -118,11 +118,54 @@ looks like a broken feature. A `500` with pending migrations is a gate, not a ch
 
 ### 4. Recording browser
 
-The film comes from the recording Chrome, not the everyday one. Bring it up and pick the tab
-exactly as `/soffner:browser-record` describes, and read that skill's first two sections before
-rolling: what the frames do and do not contain decides how the route has to be driven.
+The film comes from the recording Chrome, not the everyday one. `aditor record --tab` pulls frames
+from a tab over the DevTools protocol, so it needs a Chrome with a debug port, and the everyday one
+can never have it: Chrome 136+ refuses `--remote-debugging-port` on the default data dir, and a
+second launch on a data dir that is already running only forwards to the live instance and exits.
+So there is a second Chrome, the **Chrome Gravação** shortcut on the desktop:
 
-Two properties of the capture change the direction:
+| | |
+|---|---|
+| Data dir | `~/.config/google-chrome-record` |
+| Profile | `Default`, a copy of the everyday `Claude` profile (`Profile 3`) |
+| CDP port | `9222`, shared by every profile open in that instance |
+| Window class | `chrome-gravacao` |
+
+```bash
+command -v aditor >/dev/null || echo "aditor missing"
+curl -sf --max-time 2 http://127.0.0.1:9222/json/version >/dev/null && echo up || echo down
+```
+
+`down`: bring it up with the command the shortcut runs. The everyday Chrome keeps running next to
+it; never kill it to free the port.
+
+```bash
+nohup /usr/bin/google-chrome \
+  --user-data-dir="$HOME/.config/google-chrome-record" \
+  --remote-debugging-port=9222 --class=chrome-gravacao \
+  --no-first-run --no-default-browser-check >/dev/null 2>&1 &
+until curl -sf --max-time 1 http://127.0.0.1:9222/json/version >/dev/null; do sleep 0.5; done
+```
+
+The profile copy carries the logins and the Claude in Chrome extension, but it is **frozen at the
+moment it was made**. A sign-in it no longer has: ask the user to sign in in that window, never type
+a password. To refresh the whole copy, with the recording Chrome closed:
+
+```bash
+rsync -a --delete \
+  --exclude 'Cache/' --exclude 'Code Cache/' --exclude 'GPUCache/' --exclude 'Service Worker/' \
+  --exclude 'Shared Dictionary/' --exclude 'Singleton*' \
+  "$HOME/.config/google-chrome/Profile 3/" "$HOME/.config/google-chrome-record/Default/"
+```
+
+Open the target with `/usr/bin/google-chrome --user-data-dir="$HOME/.config/google-chrome-record"
+"<url>"`, which lands in the running window. The tab id for `record` comes from
+`aditor tabs --cdp-port 9222 --json`, matched **by URL**, never by position: the first entry is
+often `chrome://newtab/`, and the order changes as tabs get focus. While the port is up any local
+process can drive that browser and read its cookies, which is why teardown offers to close it.
+
+The frames are the page viewport only: no address bar, no tabs, no cursor, no audio. Three
+properties of the capture change the direction:
 
 - **The cursor is not in the frames.** Every click is invisible, so the film needs the page's own
   feedback (focus ring, spinner, flash message, row appearing) to carry each beat. A shot whose
@@ -424,6 +467,5 @@ Left behind: <server, browser, raw takes, TESTE_ records>
 ## When NOT to use
 
 - Proving the PR works, with findings and evidence: `/soffner:browser-test`.
-- A video with no PR to publish it on: `/soffner:browser-record`.
 - Still screenshots for the PR body: take them in `/soffner:browser-test` and attach them the same way step 8 describes.
 - The PR is not open yet: open it first, since the section is written into its body.
