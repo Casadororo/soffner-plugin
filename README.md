@@ -2,9 +2,10 @@
 
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
 repito no dia a dia: abrir uma task sem errar a base, desenhar antes de codar, passar trabalho para
-outra sessão, revisar o próprio diff antes de pedir review (a fundo ou numa passada rápida), triar o
-review que chega, atualizar a branch com a base, validar uma PR no browser e transformar uma PR em
-vídeo.
+outra sessão, orquestrar um board de agentes, revisar o próprio diff antes de pedir review (a fundo,
+numa passada rápida ou na sequência completa, com os ajustes aplicados), triar o review que chega,
+atualizar a branch com a base, validar uma PR no browser (com ou sem alguém no teclado), transformar
+uma PR em vídeo e anunciar a entrega no Slack.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -19,6 +20,7 @@ de teste, como subir o server).
 | `brainstorming` | Transforma uma ideia em design. Lê o repo para responder o que o repo responde, carrega o resto como suposição explícita e gasta sua atenção em lote, num gate só, em vez de uma pergunta por mensagem. Suposição rejeitada rebobina o trabalho até o último ponto aceito. |
 | `handoff` | Lado criador. Sobe um agente novo em background (`claude --bg`) com um brief escrito, espera o ACK de entendimento e libera com GO. |
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |
+| `run-aboard` | Faz da sessão a orquestradora de um board do aboard: resolve o board por link ou nome, guarda o WIP (2 por padrão), pega cards até ele e delega cada um a um agente em background (`claude --bg`). Um loop de hora em hora é também o heartbeat do board. Só mexe nos cards que ela mesma pegou; card de outra sessão só com o seu OK. |
 | `self-review` | Self-review competitivo do próprio diff: um revisor por arquivo de `.claude/rules/`, mais Banca e Juiz. Saída fixa: tabela única de achados, placar e gate para publicar como review na PR. |
 | `quick-review` | Passada rápida numa PR: uma onda só de lentes Sonnet em paralelo — bloat, teste que não se paga, buraco de produto, bug provável — e cada achado pesado por quanto o ajuste compra de verdade. Saída em `fix` / `call` / `cut`, mais uma linha dizendo se o código parece correto. Revisa e para: não edita nada, o conserto fica com a sessão que escreveu o código. Não lê `.claude/rules/`; profundidade é a `self-review`. |
 | `full-review` | As quatro reviews de uma PR em ordem fixa: ponytail, `/super-review-gate` (avaliadores em Haiku), `/bug-hunter-gate` e ponytail de novo. Aplica os ajustes de cada review, roda os testes afetados e faz commit e push antes de começar a próxima. Pede sessão zerada e para se faltar algum dos gates no projeto. |
@@ -106,6 +108,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 |-------|-----------|
 | `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch`, `browser-test-auto` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
+| `run-aboard` | MCP do aboard conectado, `claude` no PATH |
 | `full-review` | `git`, `gh` autenticado, o plugin ponytail e, no projeto, as skills `/super-review-gate` e `/bug-hunter-gate` |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
 | `browser-test`, `browser-test-auto`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
