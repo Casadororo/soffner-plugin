@@ -21,6 +21,7 @@ de teste, como subir o server).
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |
 | `self-review` | Self-review competitivo do próprio diff: um revisor por arquivo de `.claude/rules/`, mais Banca e Juiz. Saída fixa: tabela única de achados, placar e gate para publicar como review na PR. |
 | `quick-review` | Passada rápida numa PR: uma onda só de lentes Sonnet em paralelo — bloat, teste que não se paga, buraco de produto, bug provável — e cada achado pesado por quanto o ajuste compra de verdade. Saída em `fix` / `call` / `cut`, mais uma linha dizendo se o código parece correto. Revisa e para: não edita nada, o conserto fica com a sessão que escreveu o código. Não lê `.claude/rules/`; profundidade é a `self-review`. |
+| `full-review` | As quatro reviews de uma PR em ordem fixa: ponytail, `/super-review-gate` (avaliadores em Haiku), `/bug-hunter-gate` e ponytail de novo. Aplica os ajustes de cada review, roda os testes afetados e faz commit e push antes de começar a próxima. Pede sessão zerada e para se faltar algum dos gates no projeto. |
 | `receiving-code-review` | Tria o review que chega (humano, thread inline ou o próprio `self-review`) pelo ganho real do ajuste: implementa o que compra alguma coisa, recusa com razão técnica o que não compra e manda para follow-up o que é válido mas fora do escopo da PR. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela, sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
 | `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Sem push. |
@@ -105,6 +106,7 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 |-------|-----------|
 | `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch`, `browser-test-auto` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
+| `full-review` | `git`, `gh` autenticado, o plugin ponytail e, no projeto, as skills `/super-review-gate` e `/bug-hunter-gate` |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
 | `browser-test`, `browser-test-auto`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
 | `browser-record`, `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
