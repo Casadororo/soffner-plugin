@@ -15,7 +15,7 @@ de teste, como subir o server).
 
 | Skill | O que faz |
 |-------|-----------|
-| `itask` | Confere o prompt de abertura de uma task antes de existir qualquer coisa em disco. Preenche worktree, branch base, branch nova e próxima skill pelas convenções do projeto, mostra os quatro campos numa tabela com o goal e para até você confirmar. Sem skill de shape no repo, a próxima etapa é implementar direto. |
+| `itask` | Confere o prompt de abertura de uma task antes de existir qualquer coisa em disco. Preenche worktree, branch base, branch nova (sempre em inglês, mesmo com o prompt em português) e próxima skill pelas convenções do projeto, mostra os quatro campos numa tabela com o goal e para até você confirmar. Sem skill de shape no repo, a próxima etapa é implementar direto. |
 | `brainstorming` | Transforma uma ideia em design. Lê o repo para responder o que o repo responde, carrega o resto como suposição explícita e gasta sua atenção em lote, num gate só, em vez de uma pergunta por mensagem. Suposição rejeitada rebobina o trabalho até o último ponto aceito. |
 | `handoff` | Lado criador. Sobe um agente novo em background (`claude --bg`) com um brief escrito, espera o ACK de entendimento e libera com GO. |
 | `handoff-accept` | Lado criado. Lê o brief, cria a worktree, valida premissas no código, devolve o ACK e só trabalha depois do GO. |

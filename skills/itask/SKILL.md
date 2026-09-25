@@ -24,7 +24,7 @@ This is not a plan and not a design. It is the cheapest possible check on a misr
 |-------|---------|
 | Worktree | new |
 | Base branch | the project's integration branch, in the order its `CLAUDE.md` documents; nothing documented means the repo's default branch (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`) |
-| New branch | derived from the goal, kebab-case, following the project's branch convention when it documents one (a `branch` skill, a section in `CLAUDE.md`), including its area prefix |
+| New branch | derived from the goal, kebab-case, **always in English** even when the prompt and the goal are in another language (translate the intent, never transliterate the words), following the project's branch convention when it documents one (a `branch` skill, a section in `CLAUDE.md`), including its area prefix |
 | Next skill | resolved below |
 | Goal | **required, no default** |
 
