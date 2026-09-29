@@ -30,7 +30,7 @@ Committing and pushing **on this PR's branch only**, as many times as the fixes 
 
 ## Before the first review
 
-1. **Start in a fresh session.** Not the session that wrote the PR. A review that carries weeks of conversation pays for that context on every step, and it also carries what the author believes already works. If this session already has a long history, stop and tell the operator to open a new one.
+1. **Watch the session's size.** A review that carries weeks of conversation pays for that context on every step. The session that just wrote the PR (a board agent that owns the card end to end) runs it as it is. A session with a long unrelated history stops and tells the operator to open a new one.
 2. **Be on the PR's branch.** `gh pr view <pr> --json number,headRefName,baseRefName,url`, then `git branch --show-current`. Different branch: run `/soffner:dono <pr>` and continue inside the worktree it lands in.
 3. **Check the gates exist.** `/super-review-gate` and `/bug-hunter-gate` are project skills (V360 has them in `.claude/skills/`). Either one missing: say so and stop. Never replace a gate with its bare skill (`/super-review`, `/bug-hunter`): the bare `/super-review` fans out on the session model, and that Opus fan-out was the single largest token cost this skill exists to avoid.
 4. **Uncommitted changes in the worktree.** Read them (`git diff`, `git diff --cached`). They are usually an earlier review cut short. Run the affected tests and commit them first, so every review starts from a clean tree.
