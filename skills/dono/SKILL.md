@@ -1,6 +1,6 @@
 ---
 name: dono
-description: Use ONLY when the user explicitly invokes `/dono`. Never auto-trigger from keywords. Takes ownership of a pull request for this session - resolves the PR, makes sure a worktree with the PR branch exists (creating one through the project's worktree flow when it does not), syncs with the remote, loads the PR context and, when the prompt carries a task, executes it inside that worktree. With no task, it stops after setup and the briefing.
+description: Use ONLY when the user explicitly invokes `/dono`. Never auto-trigger from keywords. Takes ownership of a pull request for this session - resolves the PR, makes sure a worktree with the PR branch exists (claiming a slot when the repository has the devslot system, otherwise creating one through the project's worktree flow), syncs with the remote, loads the PR context and, when the prompt carries a task, executes it inside that worktree. With no task, it stops after setup and the briefing.
 ---
 
 # dono
@@ -34,7 +34,7 @@ No `<pr>`: ask which PR and stop. Do not guess from the current branch.
 
 1. Resolve the PR.
 2. Look for an existing worktree holding the PR branch.
-3. Not found: create the worktree through the project's flow.
+3. Not found: claim a devslot slot for the PR, or create the worktree through the project's flow when there is none.
 4. Enter the worktree and sync with the remote.
 5. Load the PR context.
 6. Report the ownership table.
@@ -68,13 +68,29 @@ for line in sys.stdin:
 "
 ```
 
-Found: skip step 3 and go straight to step 4, entering with `EnterWorktree` using `path:` (never `name:`).
+Found: skip step 3 and go straight to step 4, entering with `EnterWorktree` using `path:` (never `name:`). A devslot slot already holding the branch counts: it is a worktree like any other.
 
-### 3. Create the worktree
+### 3. Get a worktree: a devslot slot first
 
-The PR branch **already exists on the remote**. That changes the creation step compared to a fresh feature branch, but it does not remove the need for the project's environment setup (bundle, yarn, gitignored files, fixtures, assets).
+**A devslot slot, when the repository has the system.** The slots are fixed worktrees under `.claude/worktrees/devslot/slot-N`, each with its own databases, test slot, port and host, built once by `bin/devslot init`. Taking one is faster than building a worktree and keeps this PR's database work away from everyone else's.
 
-Slug and path:
+```bash
+MAIN_WORKTREE="$(git worktree list --porcelain | head -1 | sed 's/worktree //')"
+DEVSLOT="$(ls "$MAIN_WORKTREE/bin/devslot" "$MAIN_WORKTREE/.claude/worktrees/devslot/runtime/bin/devslot" 2>/dev/null | head -1)"
+[ -n "$DEVSLOT" ] && "$DEVSLOT" status
+```
+
+The second path is the copy the slots carry while the repository's base branch does not ship `bin/devslot` yet. With a `DEVSLOT` and at least one slot listed:
+
+```bash
+"$DEVSLOT" claim pr-<number> "<HEAD_REF>" "<baseRefName>"
+```
+
+`claim` takes the first free slot, switches it to the PR branch with its upstream on `origin/<HEAD_REF>`, prepares the code and reclones the slot's databases. Its `pasta:` line is the slot's path: enter it with `EnterWorktree` (`path:`), then read `$MAIN_WORKTREE/.claude/rules/devslot.md` when it exists, before the first test or database command. That rule says how this repository works inside a slot (which commands go through `bin/devslot`, the dev server's host, what a fresh slot needs before the first test). The slot stays held by `pr-<number>` after this session; say so in the report.
+
+`nenhuma vaga livre`, no `DEVSLOT`, or no slot listed: build a worktree as below, and say in the report why it is not a slot.
+
+**A new worktree, otherwise.** Slug and path:
 
 ```bash
 MAIN_WORKTREE="$(git worktree list --porcelain | head -1 | sed 's/worktree //')"
@@ -146,9 +162,10 @@ Fixed format:
 ```
 | PR | Branch | Base | Worktree | State |
 |----|--------|------|----------|-------|
-| #<n> <title> | <headRefName> | <baseRefName> | <path> (new or existing) | <OPEN/DRAFT>, <level with origin or N commits behind> |
+| #<n> <title> | <headRefName> | <baseRefName> | <path> (slot N, new or existing) | <OPEN/DRAFT>, <level with origin or N commits behind> |
 
 Task: <one-line summary, or "none">
+Slot: <slot N, held by pr-<n>; freed with `<DEVSLOT> release N` once everything is pushed | not a slot: <why>>
 ```
 
 No task in the prompt: stop here, saying the session is ready to receive the demand.
@@ -165,6 +182,7 @@ While executing:
 - Project skills apply as usual. Bug with unknown cause: find the cause before proposing a fix — reproduce it, then narrow it down — instead of patching the symptom. Large demand with no shape: the project's shaping skill first, when it ships one.
 - Tests only through the queue or runner the project documents, one run at a time. **Infrastructure** failure (database, migration, fixture, connection): stop and hand it back to the user with the exact message, without trying to fix the environment.
 - No browser automation and no dev server unless the user asks.
+- Inside a slot, every command that reaches the database goes through `$DEVSLOT`, as the repository's devslot rule says, never straight to the framework's CLI.
 - At the end: summarize what changed (files plus behavior), what was verified, and what was left out. No commit and no push until the user asks.
 
 ## When NOT to use
