@@ -30,7 +30,7 @@ de teste, como subir o server).
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
 | `browser-test-auto` | A `browser-test` sem ninguém no teclado: pega um lock da máquina (settings e Chrome são compartilhados), despacha um runner Opus novo em background que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Só desktop. |
-| `demo` | Vídeo de demonstração de uma PR: planeja a rota, filma, monta com legenda e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. |
+| `demo` | Vídeo de demonstração de uma PR: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. |
 
 `brainstorming` e `receiving-code-review` nasceram no [superpowers](https://github.com/obra/superpowers)
 do Jesse Vincent (MIT), portadas da versão 6.3.0 e reescritas para o plugin dele poder ficar
@@ -100,7 +100,7 @@ máquina**: as mesmas skills apareceriam duas vezes, uma por origem.
 
 ## Dependências externas
 
-Nenhuma skill instala nada. O que cada grupo espera encontrar:
+Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote para um cache do usuário. O que cada grupo espera encontrar:
 
 | Skill | Precisa de |
 |-------|-----------|
@@ -108,14 +108,8 @@ Nenhuma skill instala nada. O que cada grupo espera encontrar:
 | `brainstorming` | nada além do repo |
 | `full-review` | `git`, `gh` autenticado, o plugin ponytail e, no projeto, as skills `/super-review-gate` e `/bug-hunter-gate` |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
-| `browser-test`, `browser-test-auto`, `demo` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
-| `demo` | [`aditor`](https://github.com/victorlcampos/aditor) no PATH, e um Chrome com porta de debug aberta |
-
-O Chrome com porta de debug é um requisito do próprio Chrome, não do plugin: da versão 136 em
-diante ele recusa `--remote-debugging-port` quando o diretório de dados é o padrão, e um segundo
-`google-chrome` no mesmo diretório apenas conversa com a instância que já está rodando. A skill
-`demo` explica o arranjo que resolve isso, com uma cópia do perfil que preserva os
-logins.
+| `browser-test`, `browser-test-auto` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
+| `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina) |
 
 ## Convenções
 
