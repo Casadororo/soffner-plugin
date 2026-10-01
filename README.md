@@ -5,7 +5,8 @@ repito no dia a dia: abrir uma task sem errar a base, desenhar antes de codar, p
 outra sessão, revisar o próprio diff antes de pedir review (a fundo,
 numa passada rápida ou na sequência completa, com os ajustes aplicados), triar o review que chega,
 atualizar a branch com a base, validar uma PR no browser (com ou sem alguém no teclado), transformar
-uma PR em vídeo e anunciar a entrega no Slack.
+uma PR em vídeo, anunciar a entrega no Slack e deixar uma sessão autônoma levar um escopo do produto
+bem mais longe.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -23,13 +24,14 @@ de teste, como subir o server).
 | `self-review` | Self-review competitivo do próprio diff: um revisor por arquivo de `.claude/rules/`, mais Banca e Juiz. Saída fixa: tabela única de achados, placar e gate para publicar como review na PR. |
 | `quick-review` | Passada rápida numa PR: uma onda só de lentes Sonnet em paralelo — bloat, teste que não se paga, buraco de produto, bug provável — e cada achado pesado por quanto o ajuste compra de verdade. Saída em `fix` / `call` / `cut`, mais uma linha dizendo se o código parece correto. Revisa e para: não edita nada, o conserto fica com a sessão que escreveu o código. Não lê `.claude/rules/`; profundidade é a `self-review`. |
 | `full-review` | As quatro reviews de uma PR em ordem fixa: ponytail, `/super-review-gate` (avaliadores em Haiku), `/bug-hunter-gate` e ponytail de novo. Aplica os ajustes de cada review, roda os testes afetados e faz commit e push antes de começar a próxima. Pede sessão zerada e para se faltar algum dos gates no projeto. |
+| `level-up` | Uma sessão autônoma que pega um escopo (uma PR, uma parte do produto ou o produto inteiro), com uma ambição opcional, e o devolve bem mais valioso numa PR só. Anda pelas jornadas de cada persona no produto de hoje, escreve a spec e uma barra de critérios que o produto atual reprova, constrói em rodadas e, a cada rodada, avaliadores sem histórico da construção usam o produto rodando num browser isolado e dão nota. Para na barra, não no PR aberto. Não pergunta nada. |
 | `receiving-code-review` | Tria o review que chega (humano, thread inline ou o próprio `self-review`) pelo ganho real do ajuste: implementa o que compra alguma coisa, recusa com razão técnica o que não compra e manda para follow-up o que é válido mas fora do escopo da PR. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela, sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
 | `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Sem push. |
 | `announcement` | Anúncio de feature, melhoria ou Beta para o Slack: canvas longo com a mensagem de canal que aponta para ele, ou mensagem curta autocontida. Aceita uma PR como fonte e lê dela nome, motivação, setting e limitações; o que a PR não responde (disponibilidade, time, canal, demo) vai num gate só. Salva em `announcements/<slug>/` e imprime os blocos prontos para colar. Não posta nada. |
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
-| `browser-test-auto` | A `browser-test` sem ninguém no teclado: pega um lock da máquina (settings e Chrome são compartilhados), despacha um runner Opus novo em background que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Só desktop. |
+| `browser-test-auto` | A `browser-test` sem ninguém no teclado: despacha um runner Opus novo (`claude -p`) com um Chrome headless e isolado só dele, pelo Playwright MCP, que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada (desktop e tela estreita) e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Dentro de uma vaga do `bin/devslot` roda sem trava; fora dela, pega um lock da máquina, porque o banco de dev é compartilhado. |
 | `demo` | Vídeo de demonstração de uma PR: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. |
 
 `brainstorming` e `receiving-code-review` nasceram no [superpowers](https://github.com/obra/superpowers)
@@ -104,11 +106,13 @@ Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote pa
 
 | Skill | Precisa de |
 |-------|-----------|
-| `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch`, `browser-test-auto` | `git`, `gh` autenticado |
+| `itask`, `handoff`, `handoff-accept`, `dono`, `self-review`, `quick-review`, `receiving-code-review`, `update-branch` | `git`, `gh` autenticado |
 | `brainstorming` | nada além do repo |
 | `full-review` | `git`, `gh` autenticado, o plugin ponytail e, no projeto, as skills `/super-review-gate` e `/bug-hunter-gate` |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
-| `browser-test`, `browser-test-auto` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
+| `browser-test` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
+| `browser-test-auto` | `git`, `gh` autenticado, `claude` e `node` no PATH e o Google Chrome instalado (o runner sobe o `@playwright/mcp` fixado em `playwright-mcp.json` por `npx`). Dentro de uma vaga, o `bin/devslot` do repo |
+| `level-up` | `git`, `gh` autenticado, `claude` e `node` no PATH e o Google Chrome instalado: os avaliadores usam o mesmo Playwright isolado da `browser-test-auto`. Dentro de uma vaga, a regra `devslot.md` do repo |
 | `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina) |
 
 ## Convenções
