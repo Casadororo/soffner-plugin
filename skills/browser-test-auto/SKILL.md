@@ -1,6 +1,6 @@
 ---
 name: browser-test-auto
-description: Use ONLY when the user explicitly invokes `/browser-test-auto`, or when a board briefing names it. Never auto-trigger from keywords. Unattended version of browser-test. Hands the run to one fresh Opus runner process (`claude -p`) that drives a headless, isolated Chrome of its own through the Playwright MCP, signs in as a temporary per-PR user and goes through everything the PR delivered without asking anything, restores every setting it changed, and returns the evidence. This session then audits every screenshot against what the runner claimed before reporting. Outside an aboard slot it also takes a machine-wide lock.
+description: Use ONLY when the user explicitly invokes `/browser-test-auto`, or when a board briefing names it. Never auto-trigger from keywords. Unattended version of browser-test. Hands the run to one fresh Opus runner process (`claude -p`) that drives a headless, isolated Chrome of its own through the Playwright MCP, signs in as a temporary per-PR user and goes through everything the PR delivered without asking anything, restores every setting it changed, and returns the evidence. This session then audits every screenshot against what the runner claimed before reporting. Outside a devslot slot it also takes a machine-wide lock.
 ---
 
 # browser-test-auto
@@ -44,7 +44,7 @@ Free, for the runner and, during cleanup, for the orchestrator:
 - Creating or refreshing **this PR's temporary user**, its `TESTE_` role and group, and its first-access marks ([Temporary user](#temporary-user-v360)).
 - Creating any new record the map needs, through the UI or a runner, named with the prefix `TESTE_`, id logged.
 - Changing **any setting**, only through the [Settings](#settings) recipe, logged before the write and restored before the run ends.
-- `db:migrate` on the dev database when migrations are pending, then restoring every schema dump the migrate touched (`git checkout -- <dump>`) and listing the versions in the report.
+- `db:migrate` on the dev database when migrations are pending (inside a slot, `"$DEVSLOT" rails db:migrate`), then restoring every schema dump the migrate touched (`git checkout -- <dump>`) and listing the versions in the report.
 
 Outside the contract. The row becomes `blocked: <reason>`. Never look for a second route to the same change:
 
@@ -55,9 +55,15 @@ Outside the contract. The row becomes `blocked: <reason>`. Never look for a seco
 - Editing code in the worktree under test. Rails reloads, and the evidence stops describing the PR.
 - Signing in as a real account, typing a real credential, opening a credentials file.
 
-## The lock (outside an aboard slot only)
+## The lock (outside a devslot slot only)
 
-Inside an aboard slot (`$ROOT` is `.claude/worktrees/aboard/slot-N` and its `config/database.yml` points development at `v360_aboardN`), nothing the run touches is shared: the databases, the server and the browser are the slot's own. Skip this section and every lock step below.
+Inside a devslot slot (`$ROOT` is `.claude/worktrees/devslot/slot-N` and its `config/database.yml` points development at `v360_devslotN`), nothing the run touches is shared: the databases, the server and the browser are the slot's own. Skip this section and every lock step below.
+
+Inside a slot, every Rails command also goes through `bin/devslot`, which first checks that the slot's config points only at its own databases: `"$DEVSLOT" rails runner ...`, `"$DEVSLOT" rails db:migrate`, `"$DEVSLOT" devq`, `"$DEVSLOT" setting ...`. The slot's settings deny `bin/rails`, `bundle exec rails`, `bin/devq` and `bin/dev`, so wherever this skill says `bin/rails` or `bin/devq`, a slot uses these. `DEVSLOT` is the slot's own script, or the copy the slots keep while their branch has none; shell variables do not persist between Bash calls, so write the path it prints in full:
+
+```bash
+ls "$ROOT/bin/devslot" "$ROOT/../runtime/bin/devslot" 2>/dev/null | head -1
+```
 
 Everywhere else the dev database is shared by every worktree on the machine, and two runs at once flip settings under each other. One run at a time, machine-wide.
 
@@ -118,7 +124,7 @@ Current branch equals `headRefName`: continue. Anything else: invoke `/soffner:d
 
 ### 2. Lock
 
-Outside an aboard slot, as above: nothing below runs without it. Inside a slot, none.
+Outside a devslot slot, as above: nothing below runs without it. Inside a slot, none.
 
 ### 3. Evidence folder
 
@@ -143,7 +149,7 @@ inside that contract becomes a blocked row with its reason.
 PR: #<number> <url>
 Worktree: <ROOT> (sha <SHA>)
 Evidence folder: <EVIDENCE> (absolute paths only)
-Lock: <held by the session that dispatched you, do not touch it | none: aboard slot N>
+Lock: <held by the session that dispatched you, do not touch it | none: devslot slot N, every Rails command through <DEVSLOT path>>
 Operator focus (verbatim, may be empty): <focus>
 
 Your last message is the full content of <EVIDENCE>/REPORT.md and nothing else.
@@ -204,7 +210,7 @@ after  = <read again>
 print before, saved, after
 ```
 
-- **The documented setter is the only one.** Inside an aboard slot that is `bin/aboard setting <group.name> <value>`, which reads, writes, reads back and fails when the value did not stick. Elsewhere it is `Vportal::Setting.set_setting!(:group, :name, value)` in a `bin/rails runner` with `Vtenancy::Tenant.current = Vtenancy::Tenant.first` first, with **symbols**: the stored hash is symbol-keyed and read by symbol first, so a string key is saved beside it and never read. The bare `set_setting` raises outside tests. Never an admin screen: `/admin_panel` takes the dev server down, and a value changed through a screen leaves no `before`.
+- **The documented setter is the only one.** Inside a devslot slot that is `"$DEVSLOT" setting <group.name> <value>`, which reads, writes, reads back and fails when the value did not stick. Elsewhere it is `Vportal::Setting.set_setting!(:group, :name, value)` in a `bin/rails runner` with `Vtenancy::Tenant.current = Vtenancy::Tenant.first` first, with **symbols**: the stored hash is symbol-keyed and read by symbol first, so a string key is saved beside it and never read. The bare `set_setting` raises outside tests. Never an admin screen: `/admin_panel` takes the dev server down, and a value changed through a screen leaves no `before`.
 - **`saved` false, or `after` equal to `before`, means it did not happen.** A setter that ends in `save` rather than `save!` fails silently. Do not run the row as if it had.
 - **Log before you write.** Append `set <group>.<name> before=<value>` to `$EVIDENCE/settings.log` *before* the write command, and `after=<value>` to the same line once it is proven. A run that dies halfway leaves the restore list on disk for the orchestrator.
 - **The server lags behind the database.** Settings are cached per process. Reload once, then wait out the cache window. Never edit a file to force a reload: code is frozen.
@@ -246,9 +252,9 @@ for pid in $(pgrep -f '^puma [0-9.]+ \(tcp://'); do
 done
 ```
 
-The pattern is anchored so it does not match the shell running the loop. Found: reuse its port (`grep -oE 'tcp://[^)]+' | grep -oE '[0-9]+$'`). Not found: start the project's dev server from `$ROOT` in the background (V360: `bin/devq`), read the port it announces, wait for `Listening on`. Servers of other worktrees serve other commits and stay untouched.
+The pattern is anchored so it does not match the shell running the loop. Found: reuse its port (`grep -oE 'tcp://[^)]+' | grep -oE '[0-9]+$'`). Not found: start the project's dev server from `$ROOT` in the background (V360: `bin/devq`; inside a slot `"$DEVSLOT" devq`), read the port it announces, wait for `Listening on`. Servers of other worktrees serve other commits and stay untouched.
 
-The base URL is the slot's host inside an aboard slot (`http://aboardN.localhost:<port>`) and `http://localhost:<port>` elsewhere; **never `127.0.0.1`**: the tenant is resolved from the host, and the IP gets the portal's 404 page on every route. Smoke test: `curl -s -o /dev/null -w '%{http_code}\n' "<base>/"`. `200`/`302` is alive. `500` with `Migrations are pending` in the log: migrate per the contract.
+The base URL is the slot's host inside a devslot slot (`http://devslotN.localhost:<port>`) and `http://localhost:<port>` elsewhere; **never `127.0.0.1`**: the tenant is resolved from the host, and the IP gets the portal's 404 page on every route. Smoke test: `curl -s -o /dev/null -w '%{http_code}\n' "<base>/"`. `200`/`302` is alive. `500` with `Migrations are pending` in the log: migrate per the contract.
 
 ### R3. Temporary user and sign-in
 
@@ -293,7 +299,7 @@ Fixed shape, in `REPORT.md` and in the chat:
 Environment: <worktree>, <sha>, <base url>, server <reused | started, pid N>, browser Playwright (headless, isolated), signed in as <temp user email>
 Runner: <duration>, US$ <cost> (from runner.json)
 Map: <n> rows, <p> pass, <f> fail, <b> blocked, <u> unverified (<m> of them mobile)
-Lock: <acquired at, released at; stale lock taken over from <owner> when it happened | none: aboard slot N>
+Lock: <acquired at, released at; stale lock taken over from <owner> when it happened | none: devslot slot N>
 
 ### Findings
 | # | Row | What happens | Evidence | Suspected cause |
