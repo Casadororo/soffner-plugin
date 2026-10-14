@@ -24,13 +24,13 @@ A skill's **source** is English. Text a skill **writes into a pt-BR destination*
 - Commit messages, when the project's convention is pt-BR.
 - Any payload aimed at the pt-BR team rather than at the operator.
 
-`self-review` is the reference case: the whole skill is English, and the JSON payload it posts as a PR review is pt-BR. Wherever this exception applies, say so inline, next to the payload, so nobody "fixes" it later.
+`demo` is the reference case: the whole skill is English, and the captions and the `### Demo` section it publishes on the PR are pt-BR. Wherever this exception applies, say so inline, next to the payload, so nobody "fixes" it later.
 
 Terminal output that a skill prints back to the operator follows the skill: English.
 
 ## Naming
 
-kebab-case, lowercase, no accents, and `name:` in the frontmatter must match the directory name. Verb first for a standalone skill (`self-review`), shared prefix when a family exists (`handoff`, `handoff-accept`), so `/handoff` groups them in autocomplete.
+kebab-case, lowercase, no accents, and `name:` in the frontmatter must match the directory name. Verb first for a standalone skill (`update-branch`), shared prefix when a family exists (`browser-test`, `browser-test-auto`), so `/browser-test` groups them in autocomplete.
 
 ## Adding or changing a skill
 

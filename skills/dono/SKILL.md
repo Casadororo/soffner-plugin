@@ -188,5 +188,4 @@ While executing:
 ## When NOT to use
 
 - The PR does not exist yet: this skill is about owning an open PR. A new branch is `/worktree-setup` plus `/pr`.
-- Only reading or reviewing the PR, without working on it: `/soffner:self-review`, `/review-guide` or `gh pr diff` handle that without building a worktree.
-- Delegating the demand to another background session: `/soffner:handoff`.
+- Only reading or reviewing the PR, without working on it: `/review-guide` or `gh pr diff` handle that without building a worktree.

@@ -288,5 +288,5 @@ If the question goes unanswered, everything stays up and the `Teardown` line rec
 
 - The PR is not open yet, or the change is only in the working tree: nothing to validate against a delivery. Open the PR first.
 - API or token flows with no screen: this skill drives a browser, so request-level testing belongs to whatever the project uses for it.
-- Review of the diff itself: `/soffner:self-review`.
+- Review of the diff itself: `/code-review`.
 - Recording a demo of a PR for the team: `/soffner:demo`, which plans the route, films it and publishes it in the PR body.
