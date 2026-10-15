@@ -155,8 +155,8 @@ curl -s -o /dev/null -w '%{http_code}\n' "http://devslot<N>.localhost:<port>/"
 `200` or `302` and the server is fine. The base URL is `http://devslot<N>.localhost:<port>`, with
 the slot's number, **never `localhost` alone nor `127.0.0.1`**: the app resolves the account from
 the hostname, the slot's host is that one, and the literal IP answers the app's own 404 on every
-route, which on film looks like a broken feature. A `500` with pending migrations means the migrate of step 1 did not
-run.
+route, which on film looks like a broken feature. A `500` with pending migrations means the migrate
+of step 1 did not run.
 
 ### 4. Recorder and sign-in
 
@@ -209,7 +209,7 @@ proof:
   sign-in script through the environment, **in the same Bash call**, so it is never printed, never in
   a file and never in the conversation.
 - **First-access modals are database state.** Run the block under `### 3.3.1` of
-  `.claude/skills/run-manual-tests/SKILL.md` in the worktree with this user's email, in the same
+  `.claude/skills/run-manual-tests/SKILL.md` in the slot with this user's email, in the same
   runner. Its proof lines have to read `tutoriais pendentes=0` and `popups pendentes=0`. A modal that
   still shows up in a rehearsal sends you back to this step; hiding it through the DOM masks the only
   signal that the setup failed.
