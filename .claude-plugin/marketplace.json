@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "soffner-plugin",
-  "description": "Skills pessoais de Claude Code do Rodrigo Soffner: dono de PR, atualizacao de branch com a base, validacao no browser, video de demo de PR, anuncio no Slack, pagina de escolha entre alternativas, polimento de texto e melhoria autonoma de um escopo",
+  "description": "Skills pessoais de Claude Code do Rodrigo Soffner: dono de PR, atualizacao de branch com a base, video de demo de PR, anuncio no Slack, pagina de escolha entre alternativas, polimento de texto e melhoria autonoma de um escopo",
   "owner": {
     "name": "Rodrigo Soffner",
     "url": "https://github.com/Casadororo"
@@ -9,10 +9,10 @@
   "plugins": [
     {
       "name": "soffner",
-      "description": "Dono de PR, atualizacao de branch com a base, validacao de PR no browser, video de demo publicado na PR, anuncio no Slack, pagina de escolha entre alternativas, polimento de texto e melhoria autonoma de um escopo numa PR",
+      "description": "Dono de PR, atualizacao de branch com a base, video de demo publicado na PR, anuncio no Slack, pagina de escolha entre alternativas, polimento de texto e melhoria autonoma de um escopo numa PR",
       "source": "./",
       "category": "productivity",
-      "tags": ["workflow", "git", "browser", "video", "pull-request"]
+      "tags": ["workflow", "git", "video", "pull-request"]
     }
   ]
 }

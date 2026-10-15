@@ -1,18 +1,21 @@
 ---
 name: demo
-description: Use when the user asks for a demo video of a pull request (record a demo, film the PR, put a video on the PR). Plans a shot list from what the PR delivers, reuses or starts the dev server of the PR's worktree, signs in as the PR's temporary user, writes each shot as a Playwright script and rehearses it with the camera off, films every shot in one headless run with an animated cursor, chapter cards and pt-BR captions drawn live on the page, saves the film to ~/Videos and writes a "### Demo" section at the top of the PR body with the video and a short pt-BR text explaining what it shows. Never opens a server or a PR edit on its own initiative.
+description: Use when the user asks for a demo video of a pull request (record a demo, film the PR, put a video on the PR). Claims a devslot slot at the PR's pushed head and starts the dev server there, plans a shot list from what the PR delivers, signs in as the PR's temporary user, writes each shot as a Playwright script and rehearses it with the camera off, films every shot in one headless run with an animated cursor, chapter cards and pt-BR captions drawn live on the page, saves the film to ~/Videos and writes a "### Demo" section at the top of the PR body with the video and a short pt-BR text explaining what it shows. At the end, always and without asking, deletes its work files, takes the server down and releases the slot. Never opens a server or a PR edit on its own initiative.
 ---
 
 # demo
 
-Turn a pull request into a short film a reviewer can watch instead of checking it out. Same
-discipline as `/soffner:browser-test`, different deliverable: that one proves the PR works and
-reports findings, this one shows the PR working and publishes the result on the PR.
+Turn a pull request into a short film a reviewer can watch instead of checking it out. It shows the
+PR working and publishes the result on the PR; it is not a test run.
 
-**The invocation authorizes the dev server of this worktree, a headless browser of this run's own,
-this PR's temporary user (created or refreshed as [Sign-in](#4-recorder-and-sign-in) describes) and
-one edit to the PR body.** It does not authorize a comment, a review, a commit, a push, or any other
-write to the database beyond what a user of the feature does through the screen.
+**The invocation authorizes everything the film needs inside the devslot slot this run claims, with
+no question asked**: migrations, the dev server, [settings](#settings), records and permissions in
+the slot's databases, this PR's temporary user (created or refreshed as
+[Sign-in](#4-recorder-and-sign-in) describes), the work files, a headless browser of this run's own,
+and deleting anything the run created. The slot's databases are clones the next claim throws away,
+so nothing done there reaches anyone else. Outside the slot it authorizes one edit to the PR body
+and nothing more: no comment, no review, no commit, no push, and nothing in the main worktree, its
+databases or another slot.
 
 A demo is a **happy path**. If the route hits a bug, the take stops and the bug is reported. Do
 not film around it, and do not fix it: fixing is a separate request, and Rails reloads under the
@@ -32,14 +35,14 @@ remaining shots anyway.
 | What | Where |
 |------|-------|
 | The film | `$HOME/Videos/demo-pr-<number>-<sha>.mp4`, the only file meant to outlive the run |
-| Everything else (shot scripts, rehearsal screenshots and accessibility trees, the signed-in session, encoder scratch) | `$WORK="$ROOT/tmp/demo/pr-<number>"`, gitignored |
+| Everything else (shot scripts, rehearsal screenshots and accessibility trees, the signed-in session, encoder scratch) | `$WORK="$ROOT/tmp/demo/pr-<number>"` inside the slot, gitignored, deleted at [teardown](#9-teardown) |
 
 `<SKILL_DIR>` is the base directory shown when this skill was loaded. The recorder is
 `<SKILL_DIR>/demo-take.js`.
 
 ## Flow
 
-1. PR, worktree and the state already on the machine.
+1. PR, and a devslot slot claimed for this run.
 2. Shot list.
 3. Server.
 4. Recorder and sign-in.
@@ -47,34 +50,45 @@ remaining shots anyway.
 6. Film every shot in one run.
 7. Check the film.
 8. Attach and publish the `### Demo` section.
-9. Ask what to tear down.
+9. Teardown: delete, take the server down, release the slot.
 
-### 1. PR, worktree and what is already running
-
-```bash
-gh pr view <pr> --json number,title,url,state,headRefName,baseRefName,isDraft
-git branch --show-current && git rev-parse --short HEAD
-```
-
-Current branch is not `headRefName`: invoke `/soffner:dono <number>` with no task to land in the
-PR's worktree, then continue from step 2 inside it. Never film a PR from another branch's
-checkout. The SHA goes in the file name and in the demo text, because the film shows that commit
-and no other.
-
-**Assume a server is already up.** This is normally run right after `/soffner:browser-test` or
-`/soffner:browser-test-auto`, which leave the server running and the PR's temporary user in place
-on purpose. Check before starting anything, and reuse what answers:
+### 1. PR and slot
 
 ```bash
-ROOT="$(git rev-parse --show-toplevel)"
-for pid in $(pgrep -f '^puma [0-9.]+ \(tcp://'); do
-  [ "$(readlink /proc/$pid/cwd)" = "$ROOT" ] && tr '\0' ' ' < /proc/$pid/cmdline && echo
-done
-WORK="$ROOT/tmp/demo/pr-<number>"; mkdir -p "$WORK" "$HOME/Videos"
+gh pr view <pr> --json number,title,url,state,headRefName,headRefOid,baseRefName,isDraft
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
+ls "$MAIN/bin/devslot" "$MAIN/.claude/worktrees/devslot/runtime/bin/devslot" 2>/dev/null | head -1
 ```
 
-Anything reused gets said in the report, so the reader knows the film came from a server this run
-did not start.
+**Every demo is filmed in a devslot slot this run claims for itself**, never in the current checkout
+nor in a worktree someone works in, and the slot goes back at [teardown](#9-teardown) on every way out
+of the run. The path the `ls` prints is `DEVSLOT` (the second one is the copy the slots carry while
+the base branch ships none); shell variables do not persist between Bash calls, so write it in full
+in every later command. No `DEVSLOT`: stop and report. There is no fallback to another checkout.
+
+```bash
+"$DEVSLOT" claim demo-pr-<number> demo-pr-<number>-<sha> <headRefName>
+```
+
+`<sha>` is the first 7 characters of `headRefOid`; it goes in the branch, the file name and the demo
+text, because the film shows that commit and no other. The slot gets a **throwaway branch** born at
+`origin/<headRefName>`, not the PR branch: git refuses one branch in two worktrees, and the PR branch
+may sit in its owner's slot or worktree, which this run never touches. So the film shows what is
+pushed: commits that are not on GitHub do not appear, and pushing them is the user's call. `nenhuma
+vaga livre`: stop and report.
+
+Enter the `pasta:` the claim prints with `EnterWorktree` (`path:`), confirm `git rev-parse HEAD` is
+`headRefOid`, and read `$MAIN/.claude/rules/devslot.md` when it exists: it says which commands go
+through `bin/devslot` in this repository. In V360 every Rails command does, after checking that the
+slot points only at its own databases (`"$DEVSLOT" rails runner ...`, `"$DEVSLOT" devq`,
+`"$DEVSLOT" setting ...`); the slot denies `bin/rails` and `bin/devq`. The slot's databases are fresh
+clones of the main dev without the PR's migrations, so migrate them first (V360: `"$DEVSLOT" rails
+db:migrate`). They are the slot's own: no gate.
+
+```bash
+ROOT="$(git rev-parse --show-toplevel)"; WORK="$ROOT/tmp/demo/pr-<number>"
+mkdir -p "$WORK" "$HOME/Videos"
+```
 
 ### 2. Shot list
 
@@ -107,28 +121,42 @@ Rules for the route:
   the `TESTE_` prefix, exists before the take. Nobody wants to watch a form being filled with
   setup data.
 - **Total under 60 seconds.** Longer than that and reviewers scrub instead of watching.
-- Anything the route needs that is not "a user clicking the feature" (a setting that is not the
-  PR's own flag, a write outside the browser, a change to a pre-existing record, a permission the
-  temporary user does not have yet) is the same gate `/soffner:browser-test` applies. Ask before,
-  one question, and mark the shot dropped if the answer is no.
+- Anything else the route needs beyond a user clicking the feature (a setting, a write outside the
+  browser, a change to an existing record, a permission for the temporary user) is done before the
+  camera rolls, **without asking**: it lives in the slot's databases. It goes in the report.
 
 Print the shot list before filming. It is information, not a gate, but it is also the last cheap
 moment to change the route.
 
+#### Settings
+
+Any setting the route needs is turned on (or off, to show the fallback) without asking. One that is
+not the PR's own (its key is not in `gh pr diff`, nor read at a `file:line` of the filmed path) goes
+in the report, because the film then depends on a configuration the PR does not ship.
+
+Find the key by grepping its definition, not a usage, then read, write and read back **in one
+command** through the slot's setter (V360: `"$DEVSLOT" setting <group.name> <value>`, which reads,
+writes, reads back and fails when the value did not stick).
+
+Never through an admin screen: `/admin_panel` takes the dev server down, and a value changed on a
+screen leaves no `before`. The server caches settings per process, so reload once and wait out the
+cache window before rehearsing. Nothing to put back: the value lives in the slot's databases, and
+the next claim reclones them.
+
 ### 3. Server
 
-Reuse the one found in step 1. None found: start the project's dev server in the background from
-`$ROOT` (V360: `bin/devq`; inside a devslot slot, through the slot's `bin/devslot` as
-`/soffner:browser-test-auto` describes), read the port it announces, wait for `Listening on`.
+Start the dev server in the background from the slot, the way the devslot rule says (V360:
+`"$DEVSLOT" devq`), read the port it announces, wait for `Listening on`.
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' "http://localhost:<port>/"
+curl -s -o /dev/null -w '%{http_code}\n' "http://devslot<N>.localhost:<port>/"
 ```
 
-`200` or `302` and the server is fine. The base URL is `http://localhost:<port>` (inside a devslot
-slot, `http://devslotN.localhost:<port>`), **never `127.0.0.1`**: an app that resolves the account
-from the hostname does not recognise the literal IP and answers its own 404 on every route, which
-on film looks like a broken feature. A `500` with pending migrations is a gate, not a chore.
+`200` or `302` and the server is fine. The base URL is `http://devslot<N>.localhost:<port>`, with
+the slot's number, **never `localhost` alone nor `127.0.0.1`**: the app resolves the account from
+the hostname, the slot's host is that one, and the literal IP answers the app's own 404 on every
+route, which on film looks like a broken feature. A `500` with pending migrations means the migrate of step 1 did not
+run.
 
 ### 4. Recorder and sign-in
 
@@ -162,12 +190,33 @@ What the capture gives, and what that changes in the direction:
   short pause on film instead of a frozen screen.
 
 **Sign-in.** The browser is isolated, so it starts signed out. It signs in as this PR's temporary
-user, never as the operator: follow the section "Temporary user (V360)" of
-`<SKILL_DIR>/../browser-test-auto/SKILL.md` (same user, `teste_browser_pr<number>`, reused when
-`/soffner:browser-test-auto` already made it; same least-privilege role; same first-access step,
-whose proof lines have to read zero). The one change is where the password lives: it is generated in
-the shell and reaches both the Ruby that sets it and the sign-in script through the environment, **in
-the same Bash call**, so it is never printed, never in a file and never in the conversation.
+user, never as the operator: the operator's account carries staff permissions no customer has, and
+V360 keeps one session per user, so using it would sign the operator out.
+
+One runner, `$WORK/temp-user.rb`, creates or refreshes the temporary user (V360) and prints each
+proof:
+
+- **One user per PR:** username `teste_browser_pr<number>`, first name
+  `TESTE_BROWSER`. Its email has to match `Vportal::User.customer_email_regex`, which comes from the
+  setting `general.customer_email_regex`: read it, do not guess the domain.
+- **Least privilege.** Exactly the permissions the filmed screens check (`can_do?(:<module>,
+  :<permission>)` in the diff and in the controllers it touches), in a `TESTE_BROWSER_PR<number>`
+  `Vportal::Roles::GlobalRole` inside a `TESTE_BROWSER_PR<number>` `Vportal::UserGroup`
+  (`internal: true`), with the user as a member.
+- **A fresh password on every run**, provider `email`, saved with `save!(validate: false)` (the
+  password-reuse validation refuses a legitimate save) and proven with `valid_password?`. It is
+  generated in the shell and reaches both the Ruby that sets it (`ENV['DEMO_PASSWORD']`) and the
+  sign-in script through the environment, **in the same Bash call**, so it is never printed, never in
+  a file and never in the conversation.
+- **First-access modals are database state.** Run the block under `### 3.3.1` of
+  `.claude/skills/run-manual-tests/SKILL.md` in the worktree with this user's email, in the same
+  runner. Its proof lines have to read `tutoriais pendentes=0` and `popups pendentes=0`. A modal that
+  still shows up in a rehearsal sends you back to this step; hiding it through the DOM masks the only
+  signal that the setup failed.
+- A second factor on sign-in: turn it off on this user (the user is yours).
+
+Any proof false (`valid_password?`, `can_do?` per permission, the two pending counts): fix the runner
+before the browser opens.
 
 Write `$WORK/0-sign-in.js`. For V360:
 
@@ -188,8 +237,8 @@ module.exports = {
 ```bash
 export DEMO_EMAIL='<temporary user email>'
 export DEMO_PASSWORD="$(ruby -rsecurerandom -e 'print SecureRandom.alphanumeric(16), "aZ9!"')"
-bin/rails runner "$WORK/temp-user.rb"   # creates or refreshes the user, password from ENV['DEMO_PASSWORD'], prints the proofs
-BASE_URL=http://localhost:<port> SAVE_STORAGE="$WORK/auth.json" \
+"$DEVSLOT" rails runner "$WORK/temp-user.rb"   # creates or refreshes the user, prints the proofs
+BASE_URL=http://devslot<N>.localhost:<port> SAVE_STORAGE="$WORK/auth.json" \
   node <SKILL_DIR>/demo-take.js rehearse "$WORK/0-sign-in.js"
 ```
 
@@ -246,7 +295,7 @@ Rules for the script:
 **Rehearse with the camera off**, all shots in order, against the signed-in session:
 
 ```bash
-cd "$WORK" && BASE_URL=http://localhost:<port> STORAGE="$WORK/auth.json" \
+cd "$WORK" && BASE_URL=http://devslot<N>.localhost:<port> STORAGE="$WORK/auth.json" \
   node <SKILL_DIR>/demo-take.js rehearse <the shot files in order>
 ```
 
@@ -270,7 +319,7 @@ One command, every shot, straight to the film:
 
 ```bash
 OUT="$HOME/Videos/demo-pr-<number>-<sha>.mp4"
-cd "$WORK" && BASE_URL=http://localhost:<port> STORAGE="$WORK/auth.json" \
+cd "$WORK" && BASE_URL=http://devslot<N>.localhost:<port> STORAGE="$WORK/auth.json" \
   node <SKILL_DIR>/demo-take.js film "$OUT" <the shot files in order>
 ```
 
@@ -279,8 +328,8 @@ encode (H.264, CRF 18, the only generation the film goes through). A misfire sto
 same shot, step and screenshot as a rehearsal: fix the script, rehearse that shot, film again. A
 retake costs one more run of the command, so there is never a reason to keep a fumbled take.
 
-A shot that fails for a reason in the product is a **finding**, not a retake. Stop filming, report
-it, and let the user decide whether the PR still deserves a demo.
+A shot that fails for a reason in the product is a **finding**, not a retake. Stop filming, run the
+teardown, report it, and let the user decide whether the PR still deserves a demo.
 
 ### 7. Check the film
 
@@ -376,31 +425,44 @@ syntax or an `<img>` tag gives a dead link instead.
 
 ### 9. Teardown
 
-`$WORK/auth.json` is a live session of the temporary user: delete it once the film is published,
-always. Signing in again is one command.
+**Always, with no question**, on every way out of the run once the slot is claimed: published,
+stopped by a finding, or failed. Only the film in `~/Videos` and the `### Demo` section outlive the
+run. One command, from the slot:
 
-Then one `AskUserQuestion`, offering only what this run started:
+```bash
+cd <slot path> && rm -rf tmp/demo/pr-<number> &&
+  git reset -q --hard && git clean -fdq &&
+  git switch --detach && git branch -D demo-pr-<number>-<sha> &&
+  "$DEVSLOT" release
+```
 
-| Offer | When |
-|-------|------|
-| The dev server | only if this run started it. `Keep it on <port>` first |
-| The shot scripts and rehearsal files in `$WORK` | `Keep them` first. They are how a later commit gets refilmed in one command |
+- Everything in the slot is this run's own: the claim hands over a clean slot on a branch nobody
+  else uses, and the run commits nothing. So it all goes, without asking.
+- `rm -rf` first: `$WORK` is gitignored, so neither `git clean` nor `release` removes it, and it
+  holds a live session of the temporary user (`auth.json`). Never `git clean -x`: the slot's own
+  config is gitignored too.
+- `reset --hard` and `clean -fd` drop what the run left in the tree (schema dumps `db:migrate`
+  rewrote included), so `release` finds nothing to refuse and nothing to keep for the next claim.
+- Detached, the throwaway branch is gone and `release` has no branch to look for on `origin`.
+- `release` takes down everything running in the slot, the dev server included, and puts the slot
+  back in the pool. The temporary user, the settings, the records and the migrations go with the
+  slot's databases, which the next claim reclones.
 
-A server this run found already up is never offered: it belongs to whoever started it. The film in
-`~/Videos` and the temporary user stay. Unanswered means everything stays, and the report says so.
+Then `ExitWorktree` with `keep`: the session leaves a slot it no longer holds. `release` refusing
+anyway: put its message in the report, with the slot still held.
 
 ## Report
 
 ```
 ## demo: PR #<number> <title>
 
-Environment: <worktree>, <sha>, <base url> (<started|reused>), headless Playwright, signed in as <temp user email>
+Environment: slot <N>, <sha>, <base url>, headless Playwright, signed in as <temp user email>
 Shots: <n> filmed, <n> rehearsals, <n> dropped
 File: <~/Videos/...mp4> (<duration>s, <WxH>, <size>), dead air cut: <the recorder's line, or none>
 Published: <asset url> in the PR body, section ### Demo
-Gates asked: <action, target, answer>
+Set up in the slot: <settings not the PR's own, records changed, permissions granted, or none>
 Findings: <bugs that stopped a shot, or none>
-Left behind: <server, $WORK, TESTE_ records, temporary user>
+Teardown: <$WORK deleted, server down, slot <N> released | what refused, and the slot still held>
 ```
 
 ## Rationalizations that mean stop
@@ -430,10 +492,16 @@ Left behind: <server, $WORK, TESTE_ records, temporary user>
 | "I will open the browser and drag the file into the PR" | `gh pr edit --attach` uploads it from the command line. |
 | "The command exited non-zero, so nothing was attached" | A partial upload still edits the PR and still prints its URL. Read the body before refilming. |
 | "The video needs alt text like a screenshot does" | A player carries none. `#alt` on a video path is an error. The captions are in the frames and in the text under it. |
-| "browser-test left a server on another worktree's port, close enough" | Another worktree is another commit. Detect by cwd. |
+| "A server is already up for this PR in another worktree, I will film that one" | That worktree is someone else's, maybe on another commit. Film in the slot this run claimed. |
+| "The PR's owner already holds a slot with the branch, I will film there" | That slot and its release are the owner's. Claim your own, on the throwaway branch. |
+| "I will ask before changing this record, granting this permission or deleting what I created" | Never ask inside the slot: its databases are thrown away at the next claim, and teardown deletes the rest. Only what leaves the slot needs the user. |
+| "I will keep the slot, the user may want a retake" | The slot goes back at the end of every run. A retake is one more `/demo`. |
+| "The modal is in the way, I will close it in the DOM" | Back to the first-access step. The modal is the proof it failed. |
+| "`127.0.0.1` or plain `localhost` will do" | The tenant comes from the host. The slot's is `devslot<N>.localhost`. |
 
 ## When NOT to use
 
-- Proving the PR works, with findings and evidence: `/soffner:browser-test` or `/soffner:browser-test-auto`.
-- Still screenshots for the PR body: take them in `/soffner:browser-test` and attach them the same way step 8 describes.
+- Proving the PR works row by row, with findings: a demo films the happy path and stops at the first bug. It is not a test run.
+- Still screenshots for the PR body: `demo-take.js rehearse` leaves a PNG per shot; attach them the same way step 8 describes.
 - The PR is not open yet: open it first, since the section is written into its body.
+- The repository has no `bin/devslot` slots: this skill films only inside one.

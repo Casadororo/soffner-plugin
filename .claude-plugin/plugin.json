@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "soffner",
   "version": "0.1.0",
-  "description": "Skills pessoais de Claude Code do Rodrigo Soffner (dono de PR, browser, video de PR, melhoria autonoma)",
+  "description": "Skills pessoais de Claude Code do Rodrigo Soffner (dono de PR, video de PR, melhoria autonoma)",
   "author": {
     "name": "Rodrigo Soffner"
   },

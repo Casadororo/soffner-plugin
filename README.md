@@ -1,10 +1,9 @@
 # soffner-plugin
 
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
-repito no dia a dia: assumir uma PR, atualizar a branch com a base, validar uma PR no browser (com
-ou sem alguém no teclado), transformar uma PR em vídeo, anunciar a entrega no Slack, escolher entre
-alternativas numa página só, polir um texto e deixar uma sessão autônoma melhorar um escopo do
-produto.
+repito no dia a dia: assumir uma PR, atualizar a branch com a base, transformar uma PR em vídeo,
+anunciar a entrega no Slack, escolher entre alternativas numa página só, polir um texto e deixar uma
+sessão autônoma melhorar um escopo do produto.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -21,9 +20,7 @@ de teste, como subir o server).
 | `announcement` | Anúncio de feature, melhoria ou Beta para o Slack: canvas longo com a mensagem de canal que aponta para ele, ou mensagem curta autocontida. Aceita uma PR como fonte e lê dela nome, motivação, setting e limitações; o que a PR não responde (disponibilidade, time, canal, demo) vai num gate só. Salva em `announcements/<slug>/` e imprime os blocos prontos para colar. Não posta nada. |
 | `choose` | Uma página HTML para você escolher entre alternativas de uma vez: as opções em grupos (uma ou várias), cada uma com o print de verdade ou um trecho de código, de onde vem o dado e o esforço, uma nota por opção e uma no fim, e um botão que copia as escolhas para colar no chat. Confere o que copia antes de abrir no Chrome e trabalha em rodadas: a seguinte mostra como as peças escolhidas cabem juntas na tela. |
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
-| `browser-test` | Valida uma PR já aberta no Chrome: lê a entrega, sobe (ou reaproveita) o server da worktree da PR, percorre cada comportamento entregue, tira print e devolve relatório com evidências. Gate de permissão em tudo que escreve fora do browser. |
-| `browser-test-auto` | A `browser-test` sem ninguém no teclado: despacha um runner Opus novo (`claude -p`) com um Chrome headless e isolado só dele, pelo Playwright MCP, que loga com um usuário temporário da PR, percorre a entrega sem perguntar nada (desktop e tela estreita) e restaura as settings que mudou. A sessão que chamou audita cada print contra o que o runner afirmou antes de reportar. Dentro de uma vaga do `bin/devslot` roda sem trava; fora dela, pega um lock da máquina, porque o banco de dev é compartilhado. |
-| `demo` | Vídeo de demonstração de uma PR: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. |
+| `demo` | Vídeo de demonstração de uma PR, sempre numa vaga do devslot que ocupa no início e solta no fim: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. No fim apaga os arquivos de trabalho e derruba o servidor, sem perguntar. |
 
 ## Instalação
 
@@ -76,10 +73,8 @@ Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote pa
 | `dono`, `update-branch` | `git`, `gh` autenticado |
 | `announcement` | `gh` autenticado, só quando a fonte é uma PR |
 | `choose` | `python3` e o Google Chrome |
-| `browser-test` | extensão Claude in Chrome (ferramentas `mcp__claude-in-chrome__*`) |
-| `browser-test-auto` | `git`, `gh` autenticado, `claude` e `node` no PATH e o Google Chrome instalado (o runner sobe o `@playwright/mcp` fixado em `playwright-mcp.json` por `npx`). Dentro de uma vaga, o `bin/devslot` do repo |
 | `level-up` | `git`, `gh` autenticado. Para olhar uma tela alterada, `node` e o Google Chrome (o recorder da `demo`). Dentro de uma vaga, a regra `devslot.md` do repo |
-| `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina) |
+| `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina). Um repo com `bin/devslot` e uma vaga livre |
 
 ## Convenções
 

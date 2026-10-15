@@ -30,7 +30,7 @@ Terminal output that a skill prints back to the operator follows the skill: Engl
 
 ## Naming
 
-kebab-case, lowercase, no accents, and `name:` in the frontmatter must match the directory name. Verb first for a standalone skill (`update-branch`), shared prefix when a family exists (`browser-test`, `browser-test-auto`), so `/browser-test` groups them in autocomplete.
+kebab-case, lowercase, no accents, and `name:` in the frontmatter must match the directory name. Verb first for a standalone skill (`update-branch`), shared prefix when a family exists (`<prefix>`, `<prefix>-<variant>`), so `/<prefix>` groups them in autocomplete.
 
 ## Adding or changing a skill
 
