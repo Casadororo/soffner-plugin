@@ -1,11 +1,11 @@
 ---
 name: update-branch
-description: Use when the user asks to update the current branch with its base, bring the base in, or resolve conflicts against it (`atualiza a branch`, `traz a develop pra ca`, `merge da base`, `resolve os conflitos com a base`), or invokes `/update-branch`. Merges the base INTO the current branch and resolves conflicts by reasoning about intent, never by rebasing, never by merging the branch into the base, and never with a push. Never starts a merge on its own initiative.
+description: Use when the user asks to update the current branch with its base, bring the base in, or resolve conflicts against it (`atualiza a branch`, `traz a develop pra ca`, `merge da base`, `resolve os conflitos com a base`), or invokes `/update-branch`. Merges the base INTO the current branch and resolves conflicts by reasoning about intent, never by rebasing, never by merging the branch into the base, then pushes the merge (never forced) once it closes and no test came back red. Never starts a merge on its own initiative.
 ---
 
 # update-branch
 
-Updates the **current branch** (the branch of this chat's context) with the changes of its **base**, by merging the base into the branch. Invoking it authorizes running the merge and resolving conflicts that fall into known patterns, plus reasoning through unambiguous code conflicts. **No push.**
+Updates the **current branch** (the branch of this chat's context) with the changes of its **base**, by merging the base into the branch. Invoking it authorizes running the merge and resolving conflicts that fall into known patterns, plus reasoning through unambiguous code conflicts, then pushing the result.
 
 ```
 /update-branch [base=<branch>]
@@ -21,13 +21,14 @@ Invoking authorizes:
 - Resolving conflicts in the **known pattern classes** (see "Conflict resolution").
 - Reasoning through and resolving **unambiguous** code conflicts.
 - Closing the merge with `git merge --continue`, which creates the merge commit.
+- Pushing the current branch to `origin` once the merge is closed and no test came back red (step 5).
 
 The skill **never**:
 
-- Runs `git push`. It waits for an explicit request.
+- Force-pushes. A merge only adds commits, so a plain push always suffices.
 - Runs `git rebase` to escape a conflict.
 - Merges the current branch **into** the base. The direction is always base first, current branch second.
-- Uses `--no-verify`. The project's hooks run on the merge commit like on any other.
+- Uses `--no-verify`. The project's hooks run on the merge commit and on the push like on any other.
 
 Stop and ask for human input when:
 
@@ -111,7 +112,7 @@ git fetch origin <base>
 gh api "repos/{owner}/{repo}/pulls/<pr>/update-branch" -X PUT
 ```
 
-That endpoint merges the base into the PR (it is a merge, not a rebase). A real conflict returns 422, which is the signal to fall into the local flow below. Do not fire it without a reason — a real conflict, or a fix the base already landed — since each call burns a CI run.
+That endpoint merges the base into the PR (it is a merge, not a rebase). A real conflict returns 422, which is the signal to fall into the local flow below. Do not fire it without a reason — a real conflict, or a fix the base already landed — since each call burns a CI run. It lands the merge on the remote by itself, so there is nothing to push afterwards; bring the local branch in line with `git pull --ff-only`.
 
 **Local flow:**
 
@@ -220,7 +221,15 @@ set -o pipefail; <project test command> <affected file> 2>&1 | tee tmp/test-outp
 
 Infrastructure failure (database, fixtures, environment) goes back to the user with the exact message. Do not try to fix the environment.
 
-**No push.** Wait for an explicit instruction.
+#### Push
+
+Push only when the merge is closed and no test came back red. A failing test, or one that could not run, means no push: report and hand back.
+
+```bash
+git push -u origin HEAD
+```
+
+`-u` covers a branch that was never pushed. No `--force`, no `--force-with-lease`: the merge sits on top of the remote branch, so the push is a fast-forward. A rejection means someone pushed to the branch meanwhile. Stop and report it, never force.
 
 ### 6. Report
 
@@ -231,7 +240,7 @@ Merge <hash> — origin/<base> into <current branch>
 |------|-------|------------|
 | <path> | <lockfile / schema / artifact / keys / code> | <base, PR, combined, or regenerated> |
 
-<N> commits ahead of origin/<current branch>. Not pushed.
+Pushed to origin/<current branch>.   # or: Not pushed — <reason>.
 ```
 
 Plus, below the table:
@@ -244,7 +253,8 @@ Plus, below the table:
 
 - NEVER rebase to escape a conflict.
 - NEVER merge the current branch into the base. The direction is base into current branch.
-- NEVER push or `--no-verify` without an explicit request.
+- NEVER force-push, and NEVER `--no-verify`.
+- NEVER push with a test red or one that could not run.
 - NEVER take a blind side in a real conflict (case d). Read both sides and reason from intent.
 - NEVER revert a generated schema automatically without understanding the state of the database.
 - NEVER close an update that moved a lockfile without the project's dependency-bump scan.
