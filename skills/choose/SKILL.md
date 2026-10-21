@@ -42,6 +42,7 @@ The operator chooses from what they see, so each picture is the thing itself:
 - **Screens**: rendered by the project's own code, with its demo data, in a throwaway branch or worktree, never in the work under review. Follow the project's screenshot rules; in the deck, `.claude/rules/prints.md` forbids drawing a screen, so a prototype is a case in its picture tests, not a mockup.
 - **Running app**: a screenshot of it.
 - **Code, config, API shape, text**: a `code` block.
+- **A change to something that exists**: the picture of today as `before` and the changed one as `image`. The card shows them side by side, and in the enlarged view the arrow keys flip one into the other in place, which is where a small change shows.
 
 Same size, same data and same state across a group's pictures, so that the only difference is the option. Open every image before it goes on the page and check it shows what the option says.
 
@@ -89,6 +90,7 @@ Write the spec as JSON in a temporary folder, beside its images:
 | `key`, `title` | option | required |
 | `what`, `source`, `tag`, `tone`, `alt` | option | what it does, where its data comes from, its size, the image's description |
 | `image` | option | `.svg`, `.png`, `.jpg`, `.gif` or `.webp`, relative to the spec, inlined into the page |
+| `before` | option | an image of today beside `image`, labeled before and after; needs `image` |
 | `code` | option | a monospace block, escaped |
 | `chosen` | option | checked when the page opens |
 

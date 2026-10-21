@@ -37,6 +37,9 @@ LABELS = {
         "one": "Escolha uma.",
         "many": "Marque quantas quiser.",
         "zoom": "imagem ampliada",
+        "before": "Antes",
+        "after": "Depois",
+        "flip": "← → alterna antes e depois",
         "intro": "Clique numa imagem para vê-la grande. As escolhas ficam salvas neste navegador; o botão no fim copia tudo para colar no chat.",
     },
     "en": {
@@ -59,6 +62,9 @@ LABELS = {
         "one": "Pick one.",
         "many": "Pick as many as you want.",
         "zoom": "enlarged image",
+        "before": "Before",
+        "after": "After",
+        "flip": "← → flips before and after",
         "intro": "Click an image to see it large. Your choices are kept in this browser; the button at the end copies everything to paste in the chat.",
     },
 }
@@ -96,10 +102,13 @@ def check(spec: dict, base: Path) -> None:
                 fail(f"two options are {option['key']}")
             keys.add(option["key"])
             chosen += bool(option.get("chosen"))
-            if option.get("image") and not (base / option["image"]).is_file():
-                fail(f"{option['key']}: no image at {base / option['image']}")
-            if option.get("image") and Path(option["image"]).suffix.lower() not in TYPES:
-                fail(f"{option['key']}: images are {', '.join(TYPES)}")
+            if option.get("before") and not option.get("image"):
+                fail(f"{option['key']}: before needs an image, the after, beside it")
+            for field in ("image", "before"):
+                if option.get(field) and not (base / option[field]).is_file():
+                    fail(f"{option['key']}: no image at {base / option[field]}")
+                if option.get(field) and Path(option[field]).suffix.lower() not in TYPES:
+                    fail(f"{option['key']}: images are {', '.join(TYPES)}")
         if group["kind"] == "one" and chosen > 1:
             fail(f"group {group['id']} picks one, and {chosen} options say chosen")
 
@@ -135,6 +144,10 @@ def build(spec: dict, base: Path) -> str:
             if option.get("image"):
                 alt = option.get("alt") or option["title"]
                 visual = f'<img class="shot" src="{inline(base / option["image"])}" alt="{esc(alt)}" loading="lazy">'
+                if option.get("before"):
+                    before = f'<img class="shot" src="{inline(base / option["before"])}" alt="{esc(text["before"])}: {esc(alt)}" loading="lazy">'
+                    visual = (f'<div class="pair"><figure><figcaption>{esc(text["before"])}</figcaption>{before}</figure>'
+                              f'<figure><figcaption>{esc(text["after"])}</figcaption>{visual}</figure></div>')
             if option.get("code"):
                 visual += f'<pre class="code">{esc(option["code"])}</pre>'
             checked = " checked" if option.get("chosen") else ""
@@ -198,6 +211,9 @@ def build(spec: dict, base: Path) -> str:
   .what {{ margin: 8px 0 2px; }}
   .source {{ margin: 0 0 10px; color: var(--muted); font-size: 13px; }}
   .shot {{ width:100%; border-radius: 8px; border:1px solid var(--line); cursor: zoom-in; display:block; margin-top: 6px; }}
+  .pair {{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
+  .pair figure {{ margin: 0; }}
+  .pair figcaption {{ color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 6px; }}
   .code {{ background: var(--bg); border:1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x:auto; font: 13px/1.5 ui-monospace, monospace; margin: 6px 0 0; }}
   .note {{ margin-top: 10px; width:100%; background: var(--bg); color: var(--fg); border:1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }}
   .final {{ margin-top: 48px; background: var(--panel); border: 2px solid var(--accent); border-radius: 12px; padding: 18px; }}
@@ -210,6 +226,7 @@ def build(spec: dict, base: Path) -> str:
   .copied {{ color: var(--green); font-weight:600; }}
   .zoom {{ position: fixed; inset:0; background: rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; padding: 24px; cursor: zoom-out; }}
   .zoom img {{ max-width: 100%; max-height: 100%; }}
+  .zoom span {{ position: absolute; top: 10px; left: 24px; color: #fff; font-weight: 600; }}
 </style>
 </head>
 <body>
@@ -227,7 +244,7 @@ def build(spec: dict, base: Path) -> str:
   </section>
 </main>
 <div class="bar"><span class="count" id="count"></span><button id="copy2">{esc(text['copy'])}</button><button class="ghost" id="reset">{esc(text['clear'])}</button><span id="done2" class="copied"></span></div>
-<div class="zoom" id="zoom"><img alt="{esc(text['zoom'])}"></div>
+<div class="zoom" id="zoom"><span></span><img alt="{esc(text['zoom'])}"></div>
 <script>
 const DATA = {data_js};
 const T = DATA.text;
@@ -301,9 +318,28 @@ document.getElementById("reset").onclick = () => {{
   refresh();
 }};
 const zoom = document.getElementById("zoom");
-for (const shot of document.querySelectorAll(".shot")) shot.onclick = () => {{ zoom.querySelector("img").src = shot.src; zoom.style.display = "flex"; }};
+// a before and after pair flips in place, so the eye catches what changed
+let shown = [], at = 0;
+function show(i) {{
+  at = i;
+  zoom.querySelector("img").src = shown[at].src;
+  const label = shown[at].closest("figure")?.querySelector("figcaption")?.textContent;
+  zoom.querySelector("span").textContent = label ? `${{label}} · ${{T.flip}}` : "";
+}}
+for (const shot of document.querySelectorAll(".shot")) shot.onclick = () => {{
+  const pair = shot.closest(".pair");
+  shown = pair ? [...pair.querySelectorAll(".shot")] : [shot];
+  show(shown.indexOf(shot));
+  zoom.style.display = "flex";
+}};
 zoom.onclick = () => zoom.style.display = "none";
-document.addEventListener("keydown", e => {{ if (e.key === "Escape") zoom.style.display = "none"; }});
+document.addEventListener("keydown", e => {{
+  if (e.key === "Escape") zoom.style.display = "none";
+  if (zoom.style.display === "flex" && shown.length > 1 && ["ArrowLeft", "ArrowRight", " "].includes(e.key)) {{
+    e.preventDefault();
+    show(1 - at);
+  }}
+}});
 restore();
 refresh();
 </script>
