@@ -3,8 +3,7 @@
 Plugin pessoal de skills do [Claude Code](https://claude.com/claude-code). São os fluxos que eu
 repito no dia a dia: assumir uma PR, atualizar a branch com a base, entregar a PR para revisão,
 transformar uma PR em vídeo, anunciar a entrega no Slack, escolher entre alternativas numa página
-só, polir um texto, deixar uma sessão autônoma melhorar um escopo do produto e propor a próxima
-evolução dele com protótipos de antes e depois.
+só, polir um texto e deixar uma sessão autônoma melhorar um escopo do produto.
 
 As skills não são genéricas de propósito. Cada uma carrega as decisões e as armadilhas que já
 custaram uma sessão perdida, escritas como regra em vez de conselho. Elas assumem `git`, `gh` e um
@@ -16,7 +15,6 @@ de teste, como subir o server).
 | Skill | O que faz |
 |-------|-----------|
 | `level-up` | Melhora um escopo (uma PR, uma parte do produto ou o produto inteiro) numa PR só, sem perguntar nada. Faz uma triagem curta que só lista melhoria com evidência (arquivo e linha, teste faltando, passo quebrado, TODO), dimensiona a rodada pelo tamanho da lista (lista vazia não gera PR; lista curta, uma etapa; lista longa, até três etapas, e o resto vira próximos passos na PR) e em cada etapa mexe direto no código, testa e commita. Sempre termina: não inventa trabalho, não faz rodada de avaliação e larga o item que passa do tamanho. |
-| `evolve` | Evolução contínua do produto quando não há um rumo definido. Fotografa as telas de um escopo (ou escolhe o escopo sozinha, pelo que visitou menos), manda quatro batedores com lentes diferentes (jornada, o que o código sabe e a tela esconde, coerência entre telas, uma aposta maior) propor mudanças com evidência, e uma banca de três juízes independentes corta as fracas. As que sobram viram protótipos de antes e depois sobre a tela de verdade (parecem reais, não precisam funcionar), dois juízes novos conferem as imagens, e as melhores três a cinco vão para uma página do `choose`. Guarda um registro entre rodadas: o que você recusou não volta, e o que você escolhe vira o rumo das próximas. |
 | `dono` | Assume a propriedade de uma PR: resolve a PR, garante worktree com a branch dela (uma vaga do `bin/devslot` quando o repo tem o sistema e há vaga livre, senão uma worktree nova), sincroniza com o remoto, carrega o contexto e executa a tarefa opcional dentro dessa worktree. |
 | `deliver` | Entrega a PR desta conversa para revisão: marca como ready for review, coloca a pessoa como revisora no GitHub e manda no Slack o pedido de review no seu formato (a frase pedindo, a lista com as PRs, mesmo que seja uma, e o contexto embaixo). Usa o que a conversa já sabe (qual PR, quem é a pessoa, o que a PR faz) e só busca o que falta. Nunca escolhe a PR numa lista. |
 | `update-branch` | Traz a base para dentro da branch atual (merge, nunca rebase) e resolve os conflitos raciocinando pela intenção: base é a verdade, a mudança deliberada da PR é preservada. Lockfile, schema gerado, artefato de cron e arquivo de chaves têm regra própria. Faz o push no fim (nunca forçado), só com o merge fechado e nenhum teste vermelho. |
@@ -80,7 +78,6 @@ Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote pa
 | `changelog` | `git`, `gh` autenticado, o conector do Slack, os clones do `deck` e do `v360-agents` em `~/Documents/Github/` e, para a imagem do anúncio do deck, `python3` com o Pillow |
 | `choose` | `python3` e o Google Chrome |
 | `level-up` | `git`, `gh` autenticado. Para olhar uma tela alterada, `node` e o Google Chrome (o recorder da `demo`). Dentro de uma vaga, a regra `devslot.md` do repo |
-| `evolve` | `git`, `python3`, `node` e o Google Chrome (o recorder da `demo` e a página do `choose`). Numa app web, uma vaga do `bin/devslot` quando o repo tem o sistema, senão uma worktree descartável onde a app sobe |
 | `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina). Um repo com `bin/devslot` e uma vaga livre |
 
 ## Convenções
