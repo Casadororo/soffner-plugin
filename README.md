@@ -22,6 +22,7 @@ de teste, como subir o server).
 | `choose` | Uma página HTML para você escolher entre alternativas de uma vez: as opções em grupos (uma ou várias), cada uma com o print de verdade (ou antes e depois lado a lado, que as setas alternam na imagem ampliada) ou um trecho de código, de onde vem o dado e o esforço, uma nota por opção e uma no fim, e um botão que copia as escolhas para colar no chat. Confere o que copia antes de abrir no Chrome e trabalha em rodadas: a seguinte mostra como as peças escolhidas cabem juntas na tela. |
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `demo` | Vídeo de demonstração de uma PR, sempre numa vaga do devslot que ocupa no início e solta no fim: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. No fim apaga os arquivos de trabalho e derruba o servidor, sem perguntar. |
+| `propose` | Pesquisa na web como os produtos conhecidos resolvem um tema, estuda o produto e o código onde ele cairia e entrega uma proposta num HTML local, estilo artefato: resumo, como os outros fazem, onde estamos hoje (com `arquivo:linha`), o desafio específico do contexto, opções comparadas, o desenho recomendado, plano em fases, riscos e fontes. Abre no Chrome. Quando você escolhe a opção, fecha na hora as dúvidas que são suas e, se você passar um board do aboard, quebra a opção escolhida num subboard com o mínimo de cards, já com as dependências entre eles e no todo, e o prompt derivado do board pai. Não escreve código do produto. |
 
 ## Instalação
 
@@ -77,6 +78,7 @@ Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote pa
 | `changelog-vdev` | `git`, `gh` autenticado, o conector do Slack e o clone do `v360-agents` em `~/Documents/Github/` |
 | `choose` | `python3` e o Google Chrome |
 | `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina). Um repo com `bin/devslot` e uma vaga livre |
+| `propose` | o Google Chrome e, para o subboard, o conector do aboard |
 
 ## Convenções
 
