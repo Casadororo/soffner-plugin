@@ -1,19 +1,19 @@
 ---
 name: deliver
-description: Use when the operator hands the PR this session is working on to someone for review (manda pro fulano revisar, entrega pro fulano, pede review pro fulano, deliver to someone), or invokes `/deliver <person>`. Takes that one PR, marks it ready for review, requests the person as reviewer on GitHub and sends them a Slack message asking for the review. Never picks a PR from a list of open ones.
+description: Use when the operator hands the PR this session is working on to someone for review (manda pro fulano revisar, entrega pro fulano, pede review pro fulano, deliver to someone), or invokes `/deliver <person>`. Takes that one PR, marks it ready for review, requests the person as reviewer on GitHub and sends them a Slack message asking for the review. With several people, each one gets their own DM, never a group DM. Never picks a PR from a list of open ones.
 ---
 
 # deliver
 
 ```
-/deliver <person> [-- note for the message]
+/deliver <person> [<person>...] [-- note for the message]
 ```
 
 Three things, in this order, on **the PR of this conversation**:
 
 1. Mark it ready for review.
-2. Request `<person>` as reviewer.
-3. Send `<person>` a Slack message asking for the review.
+2. Request each `<person>` as reviewer.
+3. Send each `<person>` a Slack message asking for the review.
 
 Invoking authorizes all three, including sending the Slack message. No confirmation gate.
 
@@ -34,16 +34,18 @@ gh api graphql -F owner='{owner}' -F name='{repo}' -F q='<person>' \
 
 **The Slack user.** `slack_search_users` with the person's name as keywords. Its id is the DM channel.
 
-More than one match on either side: ask, with the candidates as options.
+With several people, resolve each one. More than one match on either side: ask, with the candidates as options.
 
 ## 2. Do
 
 ```bash
 gh pr ready <number>                         # already ready is fine
-gh pr edit <number> --add-reviewer <login>
+gh pr edit <number> --add-reviewer <login>[,<login>...]
 ```
 
 Then `slack_send_message` with `channel_id` = the person's Slack id. If the conversation named a channel or thread instead, send it there and mention the person (`<@USER_ID>`).
+
+**One person, one DM.** With several people, send a separate message to each one's own DM, each opening with that person's name. Never a group DM: never `slack_create_conversation` with several users, never one message addressed to everyone, even when the PRs and the context are the same.
 
 The message is **pt-BR**, because it goes to a pt-BR teammate (the plugin's "content published elsewhere" exception; do not translate it). It copies how the operator writes review requests by hand, in three parts:
 
@@ -67,4 +69,4 @@ A do Aboard vai primeiro, porque tem migração.
 
 ## 3. Report
 
-The PR URL, the reviewer requested, and the Slack message permalink. A step that failed (the person is the PR author, no Slack match) is reported as failed, and the other steps still run.
+The PR URL, the reviewer requested, and the Slack message permalink, one per person. A step that failed (the person is the PR author, no Slack match) is reported as failed, and the other steps still run.
