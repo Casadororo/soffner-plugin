@@ -23,6 +23,7 @@ de teste, como subir o server).
 | `polish-text` | Revisa um texto que você escreveu (Slack, e-mail, comentário de PR) mantendo sua voz, corrigindo ortografia e sintaxe e tirando cara de LLM. Saída: o texto pronto e até três linhas de mudanças. |
 | `demo` | Vídeo de demonstração de uma PR, sempre numa vaga do devslot que ocupa no início e solta no fim: planeja a rota, escreve cada cena como roteiro Playwright e ensaia sem câmera, filma tudo headless com cursor, capítulos e legendas desenhados na página, salva em `~/Videos` e publica no corpo da PR numa seção `### Demo` com um texto curto do que aparece. No fim apaga os arquivos de trabalho e derruba o servidor, sem perguntar. |
 | `propose` | Pesquisa na web como os produtos conhecidos resolvem um tema, estuda o produto e o código onde ele cairia e entrega uma proposta num HTML local, estilo artefato: resumo, como os outros fazem, onde estamos hoje (com `arquivo:linha`), o desafio específico do contexto, opções comparadas, o desenho recomendado, plano em fases, riscos e fontes. Abre no Chrome. Quando você escolhe a opção, fecha na hora as dúvidas que são suas e, se você passar um board do aboard, quebra a opção escolhida num subboard com o mínimo de cards, já com as dependências entre eles e no todo, e o prompt derivado do board pai. Não escreve código do produto. |
+| `delegate-gemini` | Passa um pedaço bem delimitado do trabalho para o Gemini 4 Argon pelo CLI do Antigravity (`agy`), em background: segunda opinião num diff, busca ou inventário no código, resumo de log ou de dados grandes. Leitura em `--mode plan`; tarefa que roda comando ou edita só numa worktree descartável, nunca com push ou escrita no GitHub. O Opus confere tudo o que volta, refaz a classificação de severidade e reporta os tokens gastos. |
 
 ## Instalação
 
@@ -79,6 +80,7 @@ Nenhuma skill instala nada no sistema; as que usam Playwright baixam o pacote pa
 | `choose` | `python3` e o Google Chrome |
 | `demo` | `gh` autenticado, `node`, `ffmpeg` no PATH e o Google Chrome instalado. Na primeira execução instala o Playwright fixado em `~/.cache/soffner-demo` (sem baixar navegador: usa o Chrome da máquina). Um repo com `bin/devslot` e uma vaga livre |
 | `propose` | o Google Chrome e, para o subboard, o conector do aboard |
+| `delegate-gemini` | o `agy` em `~/.local/bin/` logado com acesso ao projeto GCP `v360-gemini-enterprise`, `git` e `jq` |
 
 ## Convenções
 
