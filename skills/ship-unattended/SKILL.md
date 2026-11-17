@@ -40,18 +40,18 @@ The operator's brief, as rules. For this run they win over every step below, ove
 
 ## What invoking authorizes
 
-Everything `/vdev:v360-build` authorizes in full mode, and nothing it forbids. Plus: a devslot slot for this run, one recurring session cron, `Workflow` runs, local commits at the end of every phase, and the measurement harnesses, which spend real model calls (capped in Measure) and may create their own test user and data in the slot's own databases, never anywhere else. Not: merging; pushing to `develop`, `release-candidate-biweekly` or `main`; running a super-review beyond the one gate; adding a review label by hand; requesting reviewers or messaging anyone (that is `/soffner:full-delivery`); `/vdev:run-manual-tests`.
+Everything `/vdev:v360-build` authorizes in full mode, and nothing it forbids. Plus: a devslot slot for this run, one recurring session cron, background subagents, local commits at the end of every phase, and the measurement harnesses, which spend real model calls (capped in Measure) and may create their own test user and data in the slot's own databases, never anywhere else. Not: merging; pushing to `develop`, `release-candidate-biweekly` or `main`; running a super-review beyond the one gate; adding a review label by hand; requesting reviewers or messaging anyone (that is `/soffner:full-delivery`); `/vdev:run-manual-tests`.
 
 ## State, cron and resume
 
-The conversation is not the run's memory; the state file is. `STATE=$HOME/.claude/skill-state/ship-unattended/<slug>.md`, beside it the folder `<slug>.d/` for logs and workflow outputs, never under `$CLAUDE_JOB_DIR`, which the harness deletes. A state file that already exists for this slug means a resume, whatever the arguments said.
+The conversation is not the run's memory; the state file is. `STATE=$HOME/.claude/skill-state/ship-unattended/<slug>.md`, beside it the folder `<slug>.d/` for logs and subagent outputs, never under `$CLAUDE_JOB_DIR`, which the harness deletes. A state file that already exists for this slug means a resume, whatever the arguments said.
 
 ```markdown
 # ship-unattended <slug>
 demand: <verbatim> | base: <base> | notes: <verbatim>
 slot: <path> | branch: <branch> | PR: <#n> | gate: <return line> | cron: <id> | status: <running | done | stopped>
 step: <sub-step, e.g. "implement slice 3/5", "gate iter 2 reviewed <sha>", "measure llm run 2/3">
-in_flight: <none | ci #n | bash <name> | workflow <task id> <scriptPath> <items>> since <time>
+in_flight: <none | ci #n | bash <name> | agents <batch> <items>> since <time>
 
 ## Phases
 - [x] 0 Setup: <one-line result>
@@ -66,8 +66,8 @@ in_flight: <none | ci #n | bash <name> | workflow <task id> <scriptPath> <items>
 ## Resume
 On every wake, read this file and nothing else first.
 1. status done or stopped: CronDelete the cron, end the turn.
-2. CronList. The cron id above is not listed: this is a new session. Create the cron again, write its id, treat a workflow in in_flight as dead.
-3. in_flight set: check it with one call. ci: `gh pr checks <n>`. bash: `cat <slug>.d/<name>.exit` (no file: still running). workflow: its completion notification is in the conversation; not there and under 3 h old, still running; older, TaskStop it and rerun its missing items. Still running: end the turn, one line, no other tool call. Done: clear in_flight first, then act on the result. A notification for something not in in_flight is ignored.
+2. CronList. The cron id above is not listed: this is a new session. Create the cron again, write its id, treat agents in in_flight as dead.
+3. in_flight set: check it with one call. ci: `gh pr checks <n>`. bash: `cat <slug>.d/<name>.exit` (no file: still running). agents: `ls <slug>.d/<batch>/`, and every item with its output there is done; an item without one is still running while its completion notification is not in the conversation and the batch is under 3 h old, else dead, and is relaunched from the batch's `brief.md`. Still running: end the turn, one line, no other tool call. Done: clear in_flight first, then act on the result. A notification for something not in in_flight is ignored.
 4. Continue from the first unchecked phase, entering it at `step` and at what the world shows (the phase's done-check), never from its top.
 5. Only if the skill's text is no longer in the conversation (after a compaction), invoke `soffner:ship-unattended` with `resume <slug>`. Never reload `/vdev:v360-build` with the demand: read only the reference of the phase being resumed.
 ```
@@ -76,7 +76,7 @@ Write the state at the end of every phase, at every `step` that takes more than 
 
 **Done-checks**, run before re-entering an unchecked phase: 1 `bin/devslot status` shows the card in a slot (else `claim` it again, it comes back with its branch); 2 to 7 `git log origin/<base>..HEAD` and `git status --short` against `plan.md`'s slices, continuing the unfinished one and never discarding, restoring or checking out files; 8 `gh pr list --head <branch> --json number`, doing only what is missing; 9 the PR has `super-review-ok` or `super-review-changes`, so the gate is done (an interrupted gate posted nothing, and continuing it from the findings file of the reviewed sha is not a second gate); 10 `gh pr checks <n>`.
 
-**Background work** leaves a trace a later wake can read with one call. Long Bash (a benchmark, an eval) runs as `( <cmd> ) > <slug>.d/<name>.log 2>&1; echo $? > <slug>.d/<name>.exit` with `run_in_background`. Every `Workflow` script takes its items from `args`, each agent writes its output to `<slug>.d/<workflow>/<item>.md` (its files, for an implementer), and a stage that receives a `null` input throws instead of running on partial input. A workflow that comes back with `null` agents (the usage limit killed them) is rerun with the same `scriptPath` and only the items whose output is missing as `args`: no script rewrite, and it works in a new session too.
+**Background work** leaves a trace a later wake can read with one call. Long Bash (a benchmark, an eval) runs as `( <cmd> ) > <slug>.d/<name>.log 2>&1; echo $? > <slug>.d/<name>.exit` with `run_in_background`. A batch of parallel subagents writes its brief to `<slug>.d/<batch>/brief.md` before launch (the prompt, with `<item>` where each one differs), and each agent writes its output to `<slug>.d/<batch>/<item>.md` as its last act (its files too, for an implementer). The lead acts on a batch only when every item has its output, never on partial input. An agent that died (the usage limit, a new session) is relaunched from `brief.md` with only the items whose output is missing: no brief rewrite, and it works in a new session too.
 
 **The cron**, created in Setup right after the state file, with `CronCreate`:
 
@@ -95,7 +95,7 @@ Load `/vdev:v360-build` with the Skill tool, args `<demand> base=<base>` (full m
 | 1 | Slot | Replaces v360-build Phase 1 (`.claude/rules/devslot.md`: the slot is the worktree). Read `devslot.md`. Already in a slot this session owns: use it. Else, from the main worktree, `bin/devslot claim ship-<slug> <branch> <base>` (`<branch>` named by the project's branch convention) and `EnterWorktree` on the `pasta:` it prints. Then `bin/devslot rails db:migrate`. No free slot: never a worktree, never an occupied slot; `step: waiting slot`, end the turn, and every cron wake tries `claim` again. Every database, runner or setting command goes through `bin/devslot`; tests through `bin/testq`. |
 | 2 | Shape | `/vdev:shape`, **no pause**: the run decides each Suposição, adjusts `shape.md` and writes the decision to Premissas. The run adds two sections to the shape, in pt-BR because `shape.md` is committed and read by the team: "Fora do escopo desta PR" (rule 2 applied to this demand) and "Como ligar" (the opt-in). |
 | 3 | Design and plan | v360-build Phase 3, plus [Design](#design-phase-3). |
-| 4 | Implement | v360-build Phase 4. Slices in disjoint files go to one `Workflow`, one agent per slice, with no test runs inside it; the lead runs the tests after. Local commit through `/vdev:commit`. |
+| 4 | Implement | v360-build Phase 4. Slices in disjoint files go to background subagents launched in one message, one per slice, with no test runs inside them; the lead runs the tests after. Local commit through `/vdev:commit`. |
 | 5 | Tests | v360-build Phase 5, full mode, through `bin/testq`. Local commit. |
 | 6 | Additive check | [Below](#additive-check-phase-6). |
 | 7 | Measure | [Below](#measure-phase-7). Local commit of the benchmark script and eval cases. |
@@ -108,7 +108,7 @@ Load `/vdev:v360-build` with the Skill tool, args `<demand> base=<base>` (full m
 
 The design is the run's call. When the Explore map shows one obvious way that respects rule 2, plan it and go.
 
-When there are two or three materially different ways to build it (computed on read or in the mview refresh; one new service or an extension point in the existing one), decide with one `Workflow`: one designer per way (with more than three, the three the map ranks most plausible), each given the Explore map and reading only the excerpts it cites, designing its way end to end (files, the opt-in, how it stays additive, its risk, its test and benchmark plan); then one judge that scores them on rule 2 first, then on the gain it expects to measure, then on diff size, picks one and grafts in what the others got right. The judge's reasons go to Premissas. One round, never two.
+When there are two or three materially different ways to build it (computed on read or in the mview refresh; one new service or an extension point in the existing one), decide with one panel of background subagents: one designer per way (with more than three, the three the map ranks most plausible), each given the Explore map and reading only the excerpts it cites, designing its way end to end (files, the opt-in, how it stays additive, its risk, its test and benchmark plan); then, once all are back, one judge that scores them on rule 2 first, then on the gain it expects to measure, then on diff size, picks one and grafts in what the others got right. The judge's reasons go to Premissas. One round, never two.
 
 A question that Measure settles with numbers (free text or JSON against a schema, a prompt's wording) is not a panel question: the operator's hypothesis is built once as the candidate, and the numbers decide.
 
@@ -166,7 +166,7 @@ Tokens:
 
 - The lead's context only grows and is re-read on every call. v360-build's three habits hold: reading code is an `Explore` subagent's job (`model: "haiku"`); never re-read what you just wrote; wait in the background, never in `sleep`.
 - The state file is the memory. After a resume, read it, not the old transcript and not the files it already summarizes.
-- `Workflow` only where parallel buys wall-clock over independent items: the design panel, disjoint implementation slices, v360-build's one-stage-per-test-file pipeline. At most 8 agents per workflow; mechanical stages at `effort: "low"`; the judge at the session's model. Never a workflow for one item.
+- Parallel only where it buys wall-clock over independent items: the design panel, disjoint implementation slices, v360-build Phase 5's one test file per agent. Wherever v360-build fans work out, here it is always background `Agent` subagents launched in one message, at most 8 per batch; mechanical ones at `effort: "low"`, the judge at the session's model. A single item is the lead's, never a batch of one.
 
 Wall-clock:
 
